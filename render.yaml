@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: assistant-471
+    runtime: node
+    region: frankfurt          # hébergement en UE
+    plan: starter              # "free" possible pour tester (mise en veille après 15 min)
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /sante
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PENNYLANE_TOKEN
+        sync: false            # à saisir dans le tableau de bord Render
+      - key: APP_PASSWORD
+        sync: false            # à saisir dans le tableau de bord Render
+      - key: CABINET_SIGNATURE
+        value: "L'équipe comptable\\nCabinet DG"
+      - key: CABINET_EXPEDITEUR
+        value: ""
+      - key: SEUIL
+        value: "0"

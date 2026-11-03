@@ -1,0 +1,52 @@
+<%- include('partials/haut', { titre: d.nom + '' }) %>
+<% const n = d.operations.length; const base = '/dossier/' + encodeURIComponent(d.companyId); %>
+<p class="muted" style="margin:0 0 6px"><a href="/">← Tous les dossiers</a></p>
+<h1><%= d.nom %></h1>
+<p class="sous"><% if (info.code) { %>Code client <%= info.code %> · <% } %>Comptes 4716 / 4717 · opérations non lettrées</p>
+
+<form class="carte" method="get">
+  <h2>Période</h2>
+  <div class="grille">
+    <div><label for="depuis">Du</label><input id="depuis" type="date" name="depuis" value="<%= depuis %>"></div>
+    <div><label for="jusqu">Au</label><input id="jusqu" type="date" name="jusqu" value="<%= jusqu %>"></div>
+    <div><button class="btn sec" type="submit">Actualiser</button></div>
+  </div>
+  <p class="muted" style="margin:10px 0 0">Laissez vide pour reprendre toutes les opérations en attente.</p>
+</form>
+
+<% if (!n) { %>
+<div class="carte"><h2>Rien à demander</h2><p class="muted" style="margin:0">Aucune opération non lettrée sur les comptes 4716 / 4717 pour cette période.</p></div>
+<% } else { %>
+<div class="carte">
+  <h2><%= n %> opération<%= n > 1 ? 's' : '' %> à justifier</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Libellé bancaire</th><th class="m">Dépense</th><th class="m">Recette</th></tr></thead>
+    <tbody>
+    <% for (const o of d.operations) { %>
+      <tr><td><%= dateFr(o.date) %></td><td><%= o.libelle %></td>
+          <td class="m dep"><%= o.depense ? euros(o.depense) : '' %></td><td class="m rec"><%= o.recette ? euros(o.recette) : '' %></td></tr>
+    <% } %>
+    </tbody>
+    <tfoot><tr><td></td><td>Total</td><td class="m dep"><%= euros(t.depenses) %></td><td class="m rec"><%= euros(t.recettes) %></td></tr></tfoot>
+  </table>
+</div>
+
+<form class="carte" method="post" action="<%= base %>/eml">
+  <input type="hidden" name="csrf" value="<%= csrf %>">
+  <input type="hidden" name="depuis" value="<%= depuis %>"><input type="hidden" name="jusqu" value="<%= jusqu %>">
+  <h2>Mail au client</h2>
+  <div class="grille" style="grid-template-columns:1fr">
+    <div><label for="dest">Destinataire (facultatif, modifiable dans Outlook)</label>
+      <input id="dest" type="email" name="destinataire" placeholder="client@exemple.fr"></div>
+    <div><label>Objet</label><input type="text" value="<%= objet %>" disabled></div>
+    <div><label for="corps">Texte du mail (vous pouvez le modifier avant de télécharger)</label>
+      <textarea id="corps" name="corps"><%= corps %></textarea></div>
+  </div>
+  <div class="actions">
+    <button class="btn" type="submit">Télécharger le mail (.eml)</button>
+    <button class="btn sec" type="submit" formaction="<%= base %>/excel">Télécharger l'Excel seul</button>
+  </div>
+  <p class="muted" style="margin:12px 0 0">Le .eml contient l'Excel en pièce jointe. Ouvrez-le avec Outlook : il s'affiche comme un nouveau message prêt à envoyer.</p>
+</form>
+<% } %>
+<%- include('partials/bas') %>

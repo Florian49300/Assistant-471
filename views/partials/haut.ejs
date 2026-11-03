@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><%= typeof titre !== "undefined" ? titre : "Assistant 471" %> · Cabinet DG</title>
+<style>
+  :root{--bleu:#1f3864;--bleu2:#2f5597;--fond:#f5f6f8;--carte:#fff;--texte:#1d2330;--gris:#667085;--bord:#e3e6ec;
+        --dep:#b42318;--rec:#067647;--jaune:#fff8db}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fond);color:var(--texte)}
+  header{background:var(--bleu);color:#fff}
+  header .in{max-width:1080px;margin:auto;padding:14px 20px;display:flex;align-items:center;gap:16px}
+  header a{color:#fff;text-decoration:none}
+  header .logo{font-weight:700;letter-spacing:.2px}
+  header .logo span{opacity:.7;font-weight:400}
+  header .sp{flex:1}
+  header .lien{opacity:.85;font-size:14px}
+  main{max-width:1080px;margin:auto;padding:24px 20px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sous{color:var(--gris);margin:0 0 20px}
+  .carte{background:var(--carte);border:1px solid var(--bord);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+  .carte h2{font-size:16px;margin:0 0 12px}
+  input[type=text],input[type=password],input[type=email],input[type=date],textarea{
+    font:inherit;padding:9px 11px;border:1px solid #cfd4dc;border-radius:7px;background:#fff;color:inherit;width:100%}
+  input:focus,textarea:focus{outline:2px solid var(--bleu2);outline-offset:-1px;border-color:transparent}
+  textarea{min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:13px;line-height:1.45}
+  label{display:block;font-size:13px;color:var(--gris);margin-bottom:4px}
+  .btn{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;padding:10px 16px;border-radius:7px;
+       border:1px solid var(--bleu);background:var(--bleu);color:#fff;cursor:pointer;text-decoration:none}
+  .btn:hover{background:var(--bleu2)}
+  .btn.sec{background:#fff;color:var(--bleu)}
+  .btn.sec:hover{background:#eef2f9}
+  .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--bord);text-align:left;vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--gris);font-weight:600}
+  td.m,th.m{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dep{color:var(--dep)} .rec{color:var(--rec)}
+  tfoot td{font-weight:700;border-top:2px solid var(--bleu);border-bottom:0}
+  .flash{background:#fef3f2;border:1px solid #fecdca;color:#b42318;padding:10px 14px;border-radius:7px;margin-bottom:14px}
+  .bandeau-demo{background:var(--jaune);border-bottom:1px solid #f2e3a0;text-align:center;font-size:13px;padding:6px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .muted{color:var(--gris);font-size:13px}
+  @media (max-width:600px){ th:nth-child(2),td:nth-child(2){max-width:160px} }
+</style>
+</head>
+<body>
+<% if (DEMO) { %><div class="bandeau-demo">Mode démonstration : données fictives, aucun appel à Pennylane</div><% } %>
+<header><div class="in">
+  <a class="logo" href="/">Assistant 471 <span>· Cabinet DG</span></a>
+  <div class="sp"></div>
+  <% if (connecte) { %><a class="lien" href="/logout">Se déconnecter</a><% } %>
+</div></header>
+<main>
+  <% if (flash) { %><div class="flash"><%= flash %></div><% } %>
+  

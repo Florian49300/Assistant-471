@@ -1,0 +1,35 @@
+<%- include('partials/haut', { titre: 'Dossiers' }) %>
+<h1>Choisir un dossier</h1>
+<p class="sous">Tapez le nom du client ou son code pour filtrer, puis cliquez sur le dossier.</p>
+
+<div class="carte">
+  <input id="q" type="text" placeholder="Rechercher par nom ou code client…" autofocus autocomplete="off">
+  <p class="muted" id="compte" style="margin:10px 0 0"></p>
+  <table style="margin-top:6px">
+    <thead><tr><th>Dossier</th><th>Code client</th><th></th></tr></thead>
+    <tbody id="liste">
+    <% for (const d of dossiers) { const lien = '/dossier/' + encodeURIComponent(d.id); %>
+      <tr data-q="<%= (d.nom + ' ' + d.code).toLowerCase() %>">
+        <td><a href="<%= lien %>"><%= d.nom %></a></td>
+        <td class="muted"><%= d.code || '—' %></td>
+        <td class="m"><a class="btn sec" style="padding:5px 12px" href="<%= lien %>">Ouvrir</a></td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:12px"><a href="/?rafraichir=1">Recharger la liste depuis Pennylane</a></p>
+</div>
+
+<script>
+  const q = document.getElementById('q'), lignes = [...document.querySelectorAll('#liste tr')], c = document.getElementById('compte');
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  function filtrer(){
+    const t = norm(q.value.trim()); let n = 0;
+    lignes.forEach(l => { const ok = !t || norm(l.dataset.q).includes(t); l.style.display = ok ? '' : 'none'; n += ok; });
+    c.textContent = n + ' dossier' + (n > 1 ? 's' : '') + (t ? ' trouvé' + (n > 1 ? 's' : '') : '');
+  }
+  q.addEventListener('input', filtrer);
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') { const v = lignes.find(l => l.style.display !== 'none'); if (v) v.querySelector('a').click(); } });
+  filtrer();
+</script>
+<%- include('partials/bas') %>

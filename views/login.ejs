@@ -1,0 +1,12 @@
+<%- include('partials/haut', { titre: 'Connexion' }) %>
+<div class="carte" style="max-width:380px;margin:40px auto">
+  <h1>Connexion</h1>
+  <p class="sous">Accès réservé au Cabinet DG.</p>
+  <form method="post">
+    <label for="pw">Mot de passe</label>
+    <input id="pw" type="password" name="password" autocomplete="current-password" autofocus required>
+    <div class="actions"><button class="btn" type="submit">Entrer</button></div>
+  </form>
+  <% if (DEMO) { %><p class="muted">Démo : mot de passe « demo ».</p><% } %>
+</div>
+<%- include('partials/bas') %>
