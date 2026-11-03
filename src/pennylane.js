@@ -4,7 +4,7 @@
  * - Liste des dossiers : Firm API v1  GET /api/external/firm/v1/companies
  * - Données d'un dossier : Company API v2 + en-tête X-Company-Id
  */
-const { retraiter } = require('./retraitement');
+const { retraiter, estLettree } = require('./retraitement');
 
 const BASE = 'https://app.pennylane.com/api/external';
 const COMPTES = ['4716', '4717'];
@@ -93,9 +93,49 @@ class Pennylane {
     );
   }
 
+  /**
+   * Les lignes 471 n'ont souvent pas de libellé dans Pennylane.
+   * On complète, dans l'ordre :
+   *   1. avec le libellé de l'écriture (ledger_entries.label),
+   *   2. sinon avec le libellé d'une autre ligne de la même écriture (ex. la ligne banque 512).
+   */
+  async completerLibelles(companyId, lignes) {
+    const vide = (l) => !String(l.label || '').trim();
+    const aCompleter = lignes.filter((l) => vide(l) && l.ledger_entry && l.ledger_entry.id);
+    if (!aCompleter.length) return lignes;
+
+    // 1. Libellé de l'écriture (100 écritures par appel)
+    const ids = [...new Set(aCompleter.map((l) => l.ledger_entry.id))];
+    const libEcriture = {};
+    for (let i = 0; i < ids.length; i += 100) {
+      const filter = JSON.stringify([{ field: 'id', operator: 'in', value: ids.slice(i, i + 100).join(',') }]);
+      for (const e of await this.toutesLesPages('ledger_entries', { filter, limit: 100 }, companyId)) {
+        if (String(e.label || '').trim()) libEcriture[e.id] = e.label;
+      }
+    }
+    for (const l of aCompleter) if (libEcriture[l.ledger_entry.id]) l.label = libEcriture[l.ledger_entry.id];
+
+    // 2. Libellé d'une autre ligne de la même écriture
+    const restantes = aCompleter.filter(vide);
+    const libLignes = {};
+    for (const id of [...new Set(restantes.map((l) => l.ledger_entry.id))].slice(0, 300)) {
+      try {
+        const autres = await this.toutesLesPages(`ledger_entries/${id}/ledger_entry_lines`, { limit: 100 }, companyId);
+        const trouvee = autres.find((x) => String(x.label || '').trim());
+        if (trouvee) libLignes[id] = trouvee.label;
+      } catch (e) {
+        if (!(e instanceof PennylaneError)) throw e; // on garde un libellé vide plutôt que de bloquer
+      }
+    }
+    for (const l of restantes) if (libLignes[l.ledger_entry.id]) l.label = libLignes[l.ledger_entry.id];
+    return lignes;
+  }
+
   async extraire(companyId, nom, { depuis, jusqu, seuil = 0 } = {}) {
     const comptes = await this.comptesAttente(companyId);
     const lignes = await this.lignes(companyId, Object.keys(comptes), depuis, jusqu);
+    // on ne cherche les libellés que pour les lignes non lettrées (celles qui seront affichées)
+    await this.completerLibelles(companyId, lignes.filter((l) => !estLettree(l)));
     return { companyId, nom, operations: retraiter(lignes, comptes, seuil) };
   }
 }
@@ -118,12 +158,13 @@ class Demo {
     });
     const jeux = {
       12345: [
-        l(1, '2026-09-03', 'CB AMAZON MKTP FR 02/09', '84.90', '0.00', '4716'),
-        l(2, '2026-09-12', 'PRLV SEPA ORANGE SA', '59.99', '0.00', '4716'),
-        l(3, '2026-09-15', 'VIR SEPA RECU M DUPONT FACT', '0.00', '1200.00', '4717'),
-        l(4, '2026-10-01', 'CB LEROY MERLIN 30/09', '312.45', '0.00', '4716', [4, 99]), // lettrée
-        l(5, '2026-10-08', 'RETRAIT DAB 07/10', '200.00', '0.00', '4716'),
-        l(6, '2026-10-20', 'REMISE CHEQUE 4521', '0.00', '450.00', '4717'),
+        l(1, '2026-09-03', 'CB AMAZON MKTP FR 02/09', '84.90', '0.00', '47160000'),
+        l(2, '2026-09-12', 'PRLV SEPA ORANGE SA', '59.99', '0.00', '47160001'),
+        l(3, '2026-09-15', 'VIR SEPA RECU M DUPONT FACT', '0.00', '1200.00', '47170000'),
+        l(4, '2026-10-01', 'CB LEROY MERLIN 30/09', '312.45', '0.00', '47160000', [4, 99]), // lettrée
+        l(5, '2026-10-08', 'RETRAIT DAB 07/10', '200.00', '0.00', '47160001'),
+        l(6, '2026-10-20', 'REMISE CHEQUE 4521', '0.00', '450.00', '47170001'),
+        l(7, '2026-10-22', 'AVOIR FOURNISSEUR BOULANGER', '0.00', '35.00', '47160000'), // crédit sur un 4716 = recette
       ],
       23456: [
         l(10, '2026-08-28', 'CB TOTALENERGIES 27/08', '95.20', '0.00', '4716'),

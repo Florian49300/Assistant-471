@@ -19,7 +19,7 @@ const cookieSession = require('cookie-session');
 
 const { Pennylane, Demo, PennylaneError } = require('./pennylane');
 const { totaux, euros, dateFr, nomFichier } = require('./retraitement');
-const { objetMail, nomExcel, corpsMail, excelBuffer, emlBuffer } = require('./documents');
+const { TYPES, operationsDe, objetMail, nomExcel, corpsMail, excelBuffer, emlBuffer } = require('./documents');
 
 const DEMO = process.env.DEMO === '1';
 const SECRET = process.env.SECRET_KEY || crypto.randomBytes(32).toString('hex');
@@ -151,6 +151,8 @@ app.get('/dossier/:id', connexionRequise, async (req, res) => {
     d,
     info: await dossierParId(req.params.id),
     t: totaux(d.operations),
+    depenses: operationsDe(d, 'depenses'),
+    recettes: operationsDe(d, 'recettes'),
     depuis: depuis || '',
     jusqu: jusqu || '',
     objet: objetMail(d),
@@ -168,9 +170,11 @@ app.post('/dossier/:id/eml', connexionRequise, verifierCsrf, async (req, res) =>
   telechargement(res, `${nomFichier(d.nom)}_mail_${jour}.eml`, 'message/rfc822', buf);
 });
 
-app.post('/dossier/:id/excel', connexionRequise, verifierCsrf, async (req, res) => {
+app.post('/dossier/:id/excel/:type', connexionRequise, verifierCsrf, async (req, res) => {
+  const type = req.params.type;
+  if (!TYPES[type]) throw new HttpError(404, 'Fichier inconnu.');
   const d = await extraire(req);
-  telechargement(res, nomExcel(d), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', await excelBuffer(d));
+  telechargement(res, nomExcel(d, type), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', await excelBuffer(d, type));
 });
 
 // --------------------------------------------------------------------------

@@ -2,8 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { enCentimes, retraiter, totaux, euros, dateFr } = require('../src/retraitement');
-const { Demo } = require('../src/pennylane');
-const { emlBuffer, corpsMail } = require('../src/documents');
+const { Demo, Pennylane } = require('../src/pennylane');
+const { emlBuffer, corpsMail, excelBuffer } = require('../src/documents');
+const ExcelJS = require('exceljs');
 
 test('conversion en centimes', () => {
   assert.equal(enCentimes('84.90'), 8490);
@@ -32,13 +33,42 @@ test('formats français', () => {
   assert.equal(dateFr('2026-09-03'), '03/09/2026');
 });
 
-test('démo : totaux et brouillon .eml', async () => {
+test('démo : sous-comptes consolidés, deux Excel joints au .eml', async () => {
   const d = await new Demo().extraire('12345', 'SARL Exemple Boulangerie');
-  assert.equal(d.operations.length, 5);
-  assert.deepEqual(totaux(d.operations), { depenses: 34489, recettes: 165000 });
-  assert.match(corpsMail(d, 'Sig'), /5 opérations bancaires pour lesquelles/);
+  assert.equal(d.operations.length, 6);
+  assert.deepEqual(totaux(d.operations), { depenses: 34489, recettes: 168500 });
+  const corps = corpsMail(d, 'Sig');
+  assert.match(corps, /DÉPENSES à justifier \(3 opérations, total 344,89 €\)/);
+  assert.match(corps, /RECETTES à justifier \(3 opérations, total 1\u202f685,00 €\)/);
   const eml = (await emlBuffer(d, { destinataire: 'client@exemple.fr', signature: 'Sig' })).toString();
   assert.match(eml, /^X-Unsent: 1/m);
   assert.match(eml, /^To: client@exemple\.fr/m);
-  assert.match(eml, /SARL_Exemple_Boulangerie_operations_a_justifier\.xlsx/);
+  assert.match(eml, /SARL_Exemple_Boulangerie_depenses_a_justifier\.xlsx/);
+  assert.match(eml, /SARL_Exemple_Boulangerie_recettes_a_justifier\.xlsx/);
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await excelBuffer(d, 'recettes'));
+  const ws = wb.worksheets[0];
+  assert.equal(ws.getCell('B5').value, 'VIR SEPA RECU M DUPONT FACT');
+  assert.equal(ws.getCell('C5').value, 1200);
+  assert.equal(ws.rowCount, 8); // 3 lignes + total
+});
+
+test('libellés manquants : écriture puis autre ligne de l\'écriture', async () => {
+  const pl = new Pennylane('x');
+  const appels = [];
+  pl.get = async (url, params) => {
+    appels.push(url.split('/v2/')[1]);
+    if (url.endsWith('/ledger_entries')) return { items: [{ id: 100, label: 'Facture EDF' }, { id: 200, label: null }], has_more: false };
+    if (url.endsWith('/ledger_entries/200/ledger_entry_lines')) return { items: [{ id: 21, label: '' }, { id: 22, label: 'CB CARREFOUR 12/10' }], has_more: false };
+    throw new Error('inattendu ' + url);
+  };
+  const lignes = [
+    { id: 1, label: '', ledger_entry: { id: 100 } },
+    { id: 2, label: '  ', ledger_entry: { id: 200 } },
+    { id: 3, label: 'Déjà là', ledger_entry: { id: 300 } },
+  ];
+  await pl.completerLibelles('1', lignes);
+  assert.deepEqual(lignes.map((l) => l.label), ['Facture EDF', 'CB CARREFOUR 12/10', 'Déjà là']);
+  assert.deepEqual(appels, ['ledger_entries', 'ledger_entries/200/ledger_entry_lines']);
 });

@@ -17,19 +17,23 @@
 <% if (!n) { %>
 <div class="carte"><h2>Rien à demander</h2><p class="muted" style="margin:0">Aucune opération non lettrée sur les comptes 4716 / 4717 pour cette période.</p></div>
 <% } else { %>
+<% for (const [titre, ops, champ, cls, total] of [['Dépenses à justifier', depenses, 'depense', 'dep', t.depenses], ['Recettes à justifier', recettes, 'recette', 'rec', t.recettes]]) { %>
 <div class="carte">
-  <h2><%= n %> opération<%= n > 1 ? 's' : '' %> à justifier</h2>
+  <h2><%= titre %> · <%= ops.length %> opération<%= ops.length > 1 ? 's' : '' %></h2>
+  <% if (!ops.length) { %><p class="muted" style="margin:0">Aucune.</p><% } else { %>
   <table>
-    <thead><tr><th>Date</th><th>Libellé bancaire</th><th class="m">Dépense</th><th class="m">Recette</th></tr></thead>
+    <thead><tr><th>Date</th><th>Libellé bancaire</th><th>Compte</th><th class="m">Montant</th></tr></thead>
     <tbody>
-    <% for (const o of d.operations) { %>
-      <tr><td><%= dateFr(o.date) %></td><td><%= o.libelle %></td>
-          <td class="m dep"><%= o.depense ? euros(o.depense) : '' %></td><td class="m rec"><%= o.recette ? euros(o.recette) : '' %></td></tr>
+    <% for (const o of ops) { %>
+      <tr><td><%= dateFr(o.date) %></td><td><%= o.libelle || '(sans libellé)' %></td><td class="muted"><%= o.compte %></td>
+          <td class="m <%= cls %>"><%= euros(o[champ]) %></td></tr>
     <% } %>
     </tbody>
-    <tfoot><tr><td></td><td>Total</td><td class="m dep"><%= euros(t.depenses) %></td><td class="m rec"><%= euros(t.recettes) %></td></tr></tfoot>
+    <tfoot><tr><td></td><td>Total</td><td></td><td class="m <%= cls %>"><%= euros(total) %></td></tr></tfoot>
   </table>
+  <% } %>
 </div>
+<% } %>
 
 <form class="carte" method="post" action="<%= base %>/eml">
   <input type="hidden" name="csrf" value="<%= csrf %>">
@@ -44,9 +48,10 @@
   </div>
   <div class="actions">
     <button class="btn" type="submit">Télécharger le mail (.eml)</button>
-    <button class="btn sec" type="submit" formaction="<%= base %>/excel">Télécharger l'Excel seul</button>
+    <% if (depenses.length) { %><button class="btn sec" type="submit" formaction="<%= base %>/excel/depenses">Excel Dépenses</button><% } %>
+    <% if (recettes.length) { %><button class="btn sec" type="submit" formaction="<%= base %>/excel/recettes">Excel Recettes</button><% } %>
   </div>
-  <p class="muted" style="margin:12px 0 0">Le .eml contient l'Excel en pièce jointe. Ouvrez-le avec Outlook : il s'affiche comme un nouveau message prêt à envoyer.</p>
+  <p class="muted" style="margin:12px 0 0">Le .eml contient en pièces jointes l'Excel des dépenses et celui des recettes (tous les sous-comptes 4716 / 4717 regroupés). Ouvrez-le avec Outlook : il s'affiche comme un nouveau message prêt à envoyer.</p>
 </form>
 <% } %>
 <%- include('partials/bas') %>
