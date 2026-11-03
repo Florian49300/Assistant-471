@@ -19,11 +19,14 @@ const cookieSession = require('cookie-session');
 
 const { Pennylane, Demo, PennylaneError } = require('./pennylane');
 const { totaux, euros, dateFr, nomFichier } = require('./retraitement');
-const { TYPES, operationsDe, objetMail, nomExcel, corpsMail, excelBuffer, emlBuffer } = require('./documents');
+const {
+  TYPES, operationsDe, objetMail, nomExcel, texteAvant, texteApres, tableauxHtml, excelBuffer, emlBuffer,
+} = require('./documents');
 
 const DEMO = process.env.DEMO === '1';
 const SECRET = process.env.SECRET_KEY || crypto.randomBytes(32).toString('hex');
-const SIGNATURE = (process.env.CABINET_SIGNATURE || "L'équipe comptable\\nCabinet DG").replace(/\\n/g, '\n');
+// Vide par défaut : on insère la signature Outlook dans le brouillon (Insertion > Signature)
+const SIGNATURE = (process.env.CABINET_SIGNATURE || '').replace(/\\n/g, '\n');
 const EXPEDITEUR = process.env.CABINET_EXPEDITEUR || '';
 const SEUIL = Number(String(process.env.SEUIL || '0').replace(',', '.')) || 0;
 const PASSWORD = process.env.APP_PASSWORD || (DEMO ? 'demo' : '');
@@ -156,7 +159,10 @@ app.get('/dossier/:id', connexionRequise, async (req, res) => {
     depuis: depuis || '',
     jusqu: jusqu || '',
     objet: objetMail(d),
-    corps: d.operations.length ? corpsMail(d, SIGNATURE) : '',
+    avant: texteAvant(d),
+    apres: texteApres(d),
+    tableaux: d.operations.length ? tableauxHtml(d) : '',
+    signature: SIGNATURE,
   });
 });
 
@@ -164,8 +170,10 @@ app.post('/dossier/:id/eml', connexionRequise, verifierCsrf, async (req, res) =>
   const d = await extraire(req);
   if (!d.operations.length) throw new HttpError(400, 'Aucune opération à justifier pour ce dossier.');
   const destinataire = String(req.body.destinataire || '').replace(/[\r\n]/g, '').trim();
-  const corps = String(req.body.corps || '').replace(/\r\n/g, '\n').trim() || null;
-  const buf = await emlBuffer(d, { destinataire, expediteur: EXPEDITEUR, signature: SIGNATURE, corps });
+  const texte = (champ) => String(req.body[champ] || '').replace(/\r\n/g, '\n').trim() || null;
+  const buf = await emlBuffer(d, {
+    destinataire, expediteur: EXPEDITEUR, signature: SIGNATURE, avant: texte('avant'), apres: texte('apres'),
+  });
   const jour = new Date().toISOString().slice(0, 10);
   telechargement(res, `${nomFichier(d.nom)}_mail_${jour}.eml`, 'message/rfc822', buf);
 });

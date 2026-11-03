@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { enCentimes, retraiter, totaux, euros, dateFr } = require('../src/retraitement');
 const { Demo, Pennylane } = require('../src/pennylane');
-const { emlBuffer, corpsMail, excelBuffer } = require('../src/documents');
+const { emlBuffer, tableauxTexte, tableauxHtml, excelBuffer } = require('../src/documents');
 const ExcelJS = require('exceljs');
 
 test('conversion en centimes', () => {
@@ -37,10 +37,16 @@ test('démo : sous-comptes consolidés, deux Excel joints au .eml', async () => 
   const d = await new Demo().extraire('12345', 'SARL Exemple Boulangerie');
   assert.equal(d.operations.length, 6);
   assert.deepEqual(totaux(d.operations), { depenses: 34489, recettes: 168500 });
-  const corps = corpsMail(d, 'Sig');
-  assert.match(corps, /DÉPENSES à justifier \(3 opérations, total 344,89 €\)/);
-  assert.match(corps, /RECETTES à justifier \(3 opérations, total 1\u202f685,00 €\)/);
-  const eml = (await emlBuffer(d, { destinataire: 'client@exemple.fr', signature: 'Sig' })).toString();
+  const txt = tableauxTexte(d);
+  assert.match(txt, /DÉPENSES À JUSTIFIER \(3 opérations\)/);
+  assert.match(txt, /RECETTES À JUSTIFIER \(3 opérations\)/);
+  assert.doesNotMatch(txt, /\|/);
+  const html = tableauxHtml(d);
+  assert.equal((html.match(/<table/g) || []).length, 2);
+  assert.match(html, /1&nbsp;685,00 €/);
+  const eml = (await emlBuffer(d, { destinataire: 'client@exemple.fr', avant: 'Bonjour <test>' })).toString();
+  assert.match(eml, /Content-Type: text\/html/);
+  assert.match(eml, /Content-Type: text\/plain/);
   assert.match(eml, /^X-Unsent: 1/m);
   assert.match(eml, /^To: client@exemple\.fr/m);
   assert.match(eml, /SARL_Exemple_Boulangerie_depenses_a_justifier\.xlsx/);

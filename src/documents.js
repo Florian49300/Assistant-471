@@ -39,39 +39,31 @@ const operationsDe = (d, type) => d.operations.filter((o) => o[TYPES[type].champ
 const objetMail = (d) => `${d.nom} - Opérations bancaires à justifier`;
 const nomExcel = (d, type) => `${nomFichier(d.nom)}_${TYPES[type].fichier}.xlsx`;
 
-function corpsMail(d, signature, maxLignes = 15) {
-  const dep = operationsDe(d, 'depenses');
-  const rec = operationsDe(d, 'recettes');
-  const t = totaux(d.operations);
-  const n = d.operations.length;
-  const pluriel = (k, mot) => `${k} ${mot}${k > 1 ? 's' : ''}`;
+// --------------------------------------------------------------------------
+// Corps du mail : texte d'introduction + tableaux + texte de conclusion.
+// Le mail est envoyé en HTML (tableaux lisibles, signature Outlook possible)
+// avec une version texte de secours pour les messageries qui n'affichent pas le HTML.
+// --------------------------------------------------------------------------
+const pluriel = (k, mot) => `${k} ${mot}${k > 1 ? 's' : ''}`;
 
-  const lignes = [
+function texteAvant(d) {
+  const n = d.operations.length;
+  return [
     'Bonjour,',
     '',
     'Dans le cadre de la tenue de votre comptabilité, nous avons relevé ' +
       (n > 1 ? `${n} opérations bancaires pour lesquelles` : '1 opération bancaire pour laquelle') +
       " nous n'avons pas de justificatif ou d'explication.",
-  ];
+  ].join('\n');
+}
 
-  const section = (titre, ops, total, champ) => {
-    if (!ops.length) return;
-    lignes.push('', `${titre} (${pluriel(ops.length, 'opération')}, total ${euros(total)}) :`);
-    for (const o of ops.slice(0, maxLignes)) {
-      lignes.push(`  - ${dateFr(o.date)} | ${o.libelle || '(sans libellé)'} | ${euros(o[champ])}`);
-    }
-    if (ops.length > maxLignes) lignes.push(`  ... et ${ops.length - maxLignes} autre(s), voir le fichier joint.`);
-  };
-  section('DÉPENSES à justifier', dep, t.depenses, 'depense');
-  section('RECETTES à justifier', rec, t.recettes, 'recette');
-
-  const fichiers = [dep.length && 'les dépenses', rec.length && 'les recettes'].filter(Boolean);
-  lignes.push(
-    '',
-    (fichiers.length > 1
+function texteApres(d) {
+  const deux = operationsDe(d, 'depenses').length && operationsDe(d, 'recettes').length;
+  return [
+    (deux
       ? 'Vous trouverez en pièces jointes deux tableaux, un pour les dépenses et un pour les recettes.'
-      : `Vous trouverez en pièce jointe un tableau reprenant ${fichiers[0]}.`) +
-      " Pourriez-vous, pour chaque opération, nous indiquer sa nature dans les colonnes jaunes et nous " +
+      : 'Vous trouverez en pièce jointe un tableau reprenant ces opérations.') +
+      ' Pourriez-vous, pour chaque opération, nous indiquer sa nature dans les colonnes jaunes et nous ' +
       'transmettre les justificatifs correspondants ?',
     '',
     'Vous pouvez aussi déposer directement les justificatifs dans votre espace Pennylane.',
@@ -79,9 +71,93 @@ function corpsMail(d, signature, maxLignes = 15) {
     'Nous restons à votre disposition pour toute question.',
     '',
     'Bien cordialement,',
-    signature,
-  );
-  return lignes.join('\n');
+  ].join('\n');
+}
+
+const echapper = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+/** Texte saisi -> paragraphes HTML (lignes vides = nouveau paragraphe). */
+const texteEnHtml = (t) =>
+  String(t || '')
+    .trim()
+    .split(/\n\s*\n/)
+    .filter((p) => p.trim())
+    .map((p) => `<p style="margin:0 0 12px 0">${echapper(p.trim()).replace(/\n/g, '<br>')}</p>`)
+    .join('\n');
+
+const POLICE = "font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1d2330";
+
+/** Tableaux HTML (styles en ligne : seul format fiable dans Outlook). */
+function tableauxHtml(d) {
+  const blocs = [];
+  for (const [type, couleur] of [['depenses', '#b42318'], ['recettes', '#067647']]) {
+    const ops = operationsDe(d, type);
+    if (!ops.length) continue;
+    const { titre, champ } = TYPES[type];
+    const total = ops.reduce((s, o) => s + o[champ], 0);
+    const th = (t, largeur, align = 'left') =>
+      `<th width="${largeur}" style="${POLICE};width:${largeur}px;background:#1f3864;color:#ffffff;font-weight:bold;text-align:${align};padding:6px 10px;border:1px solid #1f3864">${t}</th>`;
+    const td = (t, extra = '') => `<td style="${POLICE};padding:5px 10px;border:1px solid #d0d5dd;${extra}">${t}</td>`;
+    const lignes = ops
+      .map((o, i) => {
+        const fond = i % 2 ? 'background:#f2f4f7;' : '';
+        return `<tr>${td(dateFr(o.date), fond + 'white-space:nowrap')}${td(echapper(o.libelle || '(sans libellé)'), fond)}${td(
+          euros(o[champ]).replace(/ /g, '&nbsp;'),
+          fond + 'text-align:right;white-space:nowrap',
+        )}</tr>`;
+      })
+      .join('\n');
+    blocs.push(
+      `<p style="${POLICE};font-weight:bold;color:${couleur};margin:18px 0 6px 0">${titre} (${pluriel(ops.length, 'opération')})</p>\n` +
+        `<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">\n` +
+        `<tr>${th('Date', 95)}${th('Libellé bancaire', 340)}${th('Montant', 110, 'right')}</tr>\n${lignes}\n` +
+        `<tr>${td('', 'border:0')}${td('<b>Total</b>', 'border:0;text-align:right')}${td(
+          `<b>${euros(total).replace(/ /g, '&nbsp;')}</b>`,
+          `border:0;border-top:2px solid #1f3864;text-align:right;white-space:nowrap;color:${couleur}`,
+        )}</tr>\n</table>`,
+    );
+  }
+  return blocs.join('\n');
+}
+
+/** Version texte (secours) : tableaux alignés en colonnes. */
+function tableauxTexte(d) {
+  const out = [];
+  for (const type of ['depenses', 'recettes']) {
+    const ops = operationsDe(d, type);
+    if (!ops.length) continue;
+    const { titre, champ } = TYPES[type];
+    const lib = (o) => (o.libelle || '(sans libellé)').slice(0, 45);
+    const larg = Math.max(16, ...ops.map((o) => lib(o).length));
+    const total = ops.reduce((s, o) => s + o[champ], 0);
+    out.push('', `${titre.toUpperCase()} (${pluriel(ops.length, 'opération')})`, '');
+    out.push(`Date        ${'Libellé'.padEnd(larg)}  ${'Montant'.padStart(13)}`);
+    out.push('-'.repeat(12 + larg + 15));
+    for (const o of ops) out.push(`${dateFr(o.date)}  ${lib(o).padEnd(larg)}  ${euros(o[champ]).padStart(13)}`);
+    out.push('-'.repeat(12 + larg + 15));
+    out.push(`${''.padEnd(12)}${'Total'.padStart(larg)}  ${euros(total).padStart(13)}`);
+  }
+  return out.join('\n');
+}
+
+function mailHtml(d, { avant, apres, signature = '' }) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="${POLICE}">
+<div style="${POLICE}">
+${texteEnHtml(avant)}
+${tableauxHtml(d)}
+<p style="margin:18px 0 0 0"></p>
+${texteEnHtml(apres)}
+${signature ? texteEnHtml(signature) : ''}
+</div>
+</body></html>`;
+}
+
+function mailTexte(d, { avant, apres, signature = '' }) {
+  return [String(avant).trim(), tableauxTexte(d), '', String(apres).trim(), signature ? `\n${signature}` : '']
+    .join('\n')
+    .trim();
 }
 
 async function excelBuffer(d, type) {
@@ -165,8 +241,9 @@ async function excelBuffer(d, type) {
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-/** Brouillon .eml marqué « non envoyé » : Outlook l'ouvre comme un nouveau message, Excel joints. */
-async function emlBuffer(d, { destinataire = '', expediteur = '', signature = '', corps = null } = {}) {
+/** Brouillon .eml (HTML + texte) marqué « non envoyé » : Outlook l'ouvre comme un nouveau message, Excel joints. */
+async function emlBuffer(d, { destinataire = '', expediteur = '', signature = '', avant = null, apres = null } = {}) {
+  const textes = { avant: avant || texteAvant(d), apres: apres || texteApres(d), signature };
   const attachments = [];
   for (const type of Object.keys(TYPES)) {
     if (!operationsDe(d, type).length) continue;
@@ -180,11 +257,15 @@ async function emlBuffer(d, { destinataire = '', expediteur = '', signature = ''
     from: expediteur || undefined,
     to: destinataire || undefined,
     subject: objetMail(d),
-    text: corps || corpsMail(d, signature),
+    text: mailTexte(d, textes),
+    html: mailHtml(d, textes),
     headers: { 'X-Unsent': '1' },
     attachments,
   });
   return mail.compile().build();
 }
 
-module.exports = { TYPES, operationsDe, objetMail, nomExcel, corpsMail, excelBuffer, emlBuffer };
+module.exports = {
+  TYPES, operationsDe, objetMail, nomExcel, texteAvant, texteApres, tableauxHtml, tableauxTexte,
+  mailHtml, mailTexte, excelBuffer, emlBuffer,
+};

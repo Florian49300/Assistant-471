@@ -43,15 +43,41 @@
     <div><label for="dest">Destinataire (facultatif, modifiable dans Outlook)</label>
       <input id="dest" type="email" name="destinataire" placeholder="client@exemple.fr"></div>
     <div><label>Objet</label><input type="text" value="<%= objet %>" disabled></div>
-    <div><label for="corps">Texte du mail (vous pouvez le modifier avant de télécharger)</label>
-      <textarea id="corps" name="corps"><%= corps %></textarea></div>
+    <div><label for="avant">Texte avant les tableaux</label>
+      <textarea id="avant" name="avant" rows="5" style="min-height:110px"><%= avant %></textarea></div>
+    <div><label for="apres">Texte après les tableaux</label>
+      <textarea id="apres" name="apres" rows="9" style="min-height:190px"><%= apres %></textarea></div>
+    <div><label>Aperçu du mail</label>
+      <div class="apercu">
+        <div id="ap-avant"></div>
+        <%- tableaux %>
+        <p style="margin:18px 0 0"></p>
+        <div id="ap-apres"></div>
+        <% if (signature) { %><div id="ap-sig" data-t="<%= signature %>"></div><% } else { %>
+        <p class="muted" style="font-style:italic">[ Votre signature Outlook : Insertion &gt; Signature ]</p><% } %>
+      </div></div>
   </div>
   <div class="actions">
     <button class="btn" type="submit">Télécharger le mail (.eml)</button>
     <% if (depenses.length) { %><button class="btn sec" type="submit" formaction="<%= base %>/excel/depenses">Excel Dépenses</button><% } %>
     <% if (recettes.length) { %><button class="btn sec" type="submit" formaction="<%= base %>/excel/recettes">Excel Recettes</button><% } %>
   </div>
-  <p class="muted" style="margin:12px 0 0">Le .eml contient en pièces jointes l'Excel des dépenses et celui des recettes (tous les sous-comptes 4716 / 4717 regroupés). Ouvrez-le avec Outlook : il s'affiche comme un nouveau message prêt à envoyer.</p>
+  <p class="muted" style="margin:12px 0 0">Le .eml contient en pièces jointes l'Excel des dépenses et celui des recettes (tous les sous-comptes 4716 / 4717 regroupés). Ouvrez-le avec Outlook : il s'affiche comme un nouveau message en HTML, prêt à envoyer. Ajoutez votre signature avec Insertion &gt; Signature.</p>
 </form>
 <% } %>
+<style>
+  .apercu{border:1px solid var(--bord);border-radius:7px;padding:16px 18px;background:#fff;font-family:Calibri,Arial,sans-serif;font-size:14.5px;overflow-x:auto}
+  .apercu table{width:auto}
+  .apercu th{text-transform:none;letter-spacing:0;font-size:14.5px}
+  .apercu td,.apercu th{font-size:14.5px}
+</style>
+<script>
+  const html = t => t.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  const enP = t => t.trim().split(/\n\s*\n/).filter(p => p.trim()).map(p => '<p style="margin:0 0 12px">' + html(p.trim()).replace(/\n/g, '<br>') + '</p>').join('');
+  function maj(){
+    for (const k of ['avant','apres']) { const t = document.getElementById(k); if (t) document.getElementById('ap-' + k).innerHTML = enP(t.value); }
+    const sig = document.getElementById('ap-sig'); if (sig) sig.innerHTML = enP(sig.dataset.t);
+  }
+  document.querySelectorAll('#avant,#apres').forEach(t => t.addEventListener('input', maj)); maj();
+</script>
 <%- include('partials/bas') %>
