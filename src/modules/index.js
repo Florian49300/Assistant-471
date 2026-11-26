@@ -16,6 +16,8 @@
 const ICONES = {
   balance:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v17M7 20.5h10M5 7.5h14"/><path d="m5 7.5-2.5 6a3 3 0 0 0 5 0z"/><path d="m19 7.5-2.5 6a3 3 0 0 0 5 0z"/></svg>',
+  caisse:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v6H6z"/><path d="M8.5 6.5h7"/><path d="M4 13.5 5.5 9.5h13l1.5 4v6.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 16.5h16M8 13h.01M12 13h.01M16 13h.01"/></svg>',
   voiture:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5V12l2-5h12l2 5v4.5"/><path d="M3.5 12h17M4 16.5h16"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>',
 };
@@ -40,5 +42,15 @@ module.exports = [
     icone: ICONES.voiture,
     chemin: '/tvs',
     routeur: require('./tvs'),
+  },
+  {
+    id: 'caisse',
+    titre: 'Import caisse',
+    description:
+      'Fichiers de ventes des clients (caisses, factures) transformés en écritures et créés dans leur dossier Pennylane, après contrôle et confirmation.',
+    tags: ['Pennylane', 'Caisses / Z', 'Envoi contrôlé'],
+    icone: ICONES.caisse,
+    chemin: '/caisse',
+    routeur: require('./caisse/routeur'),
   },
 ];

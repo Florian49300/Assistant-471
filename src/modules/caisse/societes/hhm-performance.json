@@ -1,0 +1,26 @@
+{
+  "id": "hhm-performance",
+  "nom": "HHM PERFORMANCE",
+  "importeur": "ecritures-caisse",
+  "motifNomFichier": "HHM PERFORMANCE",
+  "nomPennylane": "",
+  "journal": "VE",
+  "journalCaisse": "VE",
+
+  "_format": "Export des ventes du logiciel de facturation : sans en-tête, colonnes date ; journal ; compte ; libellé ; pièce ; montant ; sens (D/C). Une écriture par facture ou avoir.",
+  "colonnesFixes": { "date": 0, "journal": 1, "compte": 2, "libelle": 3, "piece": 4, "montant": 5, "sens": 6 },
+  "formatPiece": "{num}",
+  "libellePiece": "{libelle}",
+
+  "_comptes": "Repris du « Fichier prêt à l'import » : clients regroupés en 411001, 707000 -> 70603, TVA 445720 -> 44571009. Un compte absent d'ici bloque la facture.",
+  "comptes": {
+    "706020": "706020",
+    "707000": "70603",
+    "445720": "44571009"
+  },
+  "comptesParPrefixe": { "411": "411001" },
+  "libellesMasses": { "Encaissements": "Clients (TTC facturé)" },
+  "libelleControle": "à rapprocher du journal des ventes du logiciel",
+
+  "comptesForces": {}
+}

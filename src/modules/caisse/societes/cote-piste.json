@@ -1,0 +1,40 @@
+{
+  "id": "cote-piste",
+  "nom": "COTE PISTE",
+  "importeur": "ecritures-caisse",
+  "nomPennylane": "",
+  "journal": "C1",
+  "formatPiece": "{m}/{j}",
+  "libellePiece": "CAISSE {jj}/{mm}/{aaaa}",
+
+  "_arrondi": "La caisse exporte 3 décimales : équilibre vérifié au millième, centimes d'arrondi (5 max) reportés sur la plus grosse vente du jour.",
+  "toleranceArrondiCentimes": 5,
+
+  "_comptesCaisse": "Compte de la caisse -> compte Pennylane (plan comptable du dossier, novembre 2026). Un compte absent d'ici bloque la journée.",
+  "comptesCaisse": {
+    "411CB":           { "compte": "411CB0000" },
+    "411CBTR":         { "compte": "411CBTR00" },
+    "411TR":           { "compte": "411TR0000" },
+    "411CV":           { "compte": "411CV0000" },
+    "411CVCO":         { "compte": "411CVCO00" },
+    "411CHQ":          { "compte": "411CHQ000" },
+    "411VIR":          { "compte": "411VIR000" },
+    "53100000":        { "compte": "531000000" },
+    "COMPTE REGLE411": { "compte": "411DIFFERE" },
+    "411DIFFERES":     { "compte": "411DIFFERE" },
+    "411DIFFERE":      { "compte": "411DIFFERE" }
+  },
+
+  "_ventesParTaux": "Ventes rangées selon le taux de la ligne (colonne Taux), et non selon le compte de la caisse.",
+  "ventesParTaux": { "10": "70110000", "20": "70700000" },
+  "tvaParTaux":    { "10": "44571008", "20": "44571009" },
+
+  "_ecarts": "Écart de caisse de la journée : moins de 1 € en 658 (manque) ou 758 (excédent) ; 1 € et plus en 471000000 (compte d'attente).",
+  "petitsEcarts": {
+    "seuilCentimes": 100,
+    "compteManque":   { "compte": "658", "libelle": "Ecart de caisse" },
+    "compteExcedent": { "compte": "758", "libelle": "Ecart de caisse" }
+  },
+  "compteEcart": { "compte": "471000000", "libelle": "Ecart de caisse" },
+  "comptesForces": {}
+}

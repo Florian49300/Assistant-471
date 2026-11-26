@@ -2,7 +2,7 @@
   "name": "assistant-471",
   "version": "1.0.0",
   "private": true,
-  "description": "Cabinet DG - comptes d'attente 4716/4717 Pennylane : Excel client et brouillon de mail .eml",
+  "description": "Portail « Mes outils de gestion » du Cabinet Durand Godeau : Assistant 471, TVS 2026, Import caisse Pennylane",
   "main": "src/server.js",
   "type": "commonjs",
   "engines": {
@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node src/server.js",
     "demo": "DEMO=1 node src/server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js src/modules/caisse/test/*.test.js",
+    "verifier-caisse": "node src/modules/caisse/outils/verifier-import.js"
   },
   "dependencies": {
     "cookie-session": "2.1.1",

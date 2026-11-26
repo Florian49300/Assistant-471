@@ -1,0 +1,34 @@
+{
+  "id": "jessifaim",
+  "nom": "JESSI'FAIM",
+  "importeur": "ecritures-caisse",
+  "motifNomFichier": "JESSIFAIM",
+  "nomPennylane": "",
+  "journal": "VE",
+  "journalCaisse": "VE",
+  "libellePiece": "CAISSE {date}",
+
+  "_comptesCaisse": "Compte de la caisse -> compte Pennylane. Un compte absent d'ici bloque la journée.",
+  "comptesCaisse": {
+    "411CB":        { "compte": "5111", "libelle": "Recette CB" },
+    "411CBTR":      { "compte": "5114", "libelle": "Recette CB tickets resto" },
+    "511CARTE KDO": { "compte": "5113", "libelle": "Recette carte cadeau" },
+    "53100000":     { "compte": "531",  "libelle": "Recette ESPECES" },
+    "411VIR":       { "compte": "5115", "libelle": "Recette VIR" }
+  },
+
+  "_ventesParTaux": "Ventes rangées selon le taux lu dans le libellé de la caisse (et non selon son compte 7…).",
+  "ventesParTaux": { "0": "5113", "5.5": "7015", "10": "7011", "20": "707" },
+  "tvaParTaux":    { "5.5": "44571006", "10": "44571008", "20": "44571009" },
+
+  "_compteEcart": "Journée déséquilibrée dans le fichier de la caisse : l'écart est passé sur ce compte d'attente (crédit si excédent, débit si manque).",
+  "compteEcart": { "compte": "471000000", "libelle": "Ecart de caisse" },
+
+  "_ecarts": "Écart de caisse de la journée : moins de 1 € en 658 (manque) ou 758 (excédent) ; 1 € et plus en 471000000 (compte d'attente).",
+  "petitsEcarts": {
+    "seuilCentimes": 100,
+    "compteManque":   { "compte": "658", "libelle": "Ecart de caisse" },
+    "compteExcedent": { "compte": "758", "libelle": "Ecart de caisse" }
+  },
+  "comptesForces": {}
+}

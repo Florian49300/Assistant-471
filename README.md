@@ -7,6 +7,7 @@ Portail interne aux couleurs du cabinet, avec une connexion Microsoft 365 unique
 | `/` | Accueil : tuiles des outils |
 | `/471` | **Assistant 471** : comptes d'attente Pennylane |
 | `/tvs` | **TVS 2026** : vérification des taxes sur les véhicules de tourisme (CO₂ + polluants) |
+| `/caisse` | **Import caisse** : écritures de ventes (caisses, factures) créées dans Pennylane (ex-site Pennylane DG) |
 
 ## Assistant 471
 
@@ -87,6 +88,9 @@ DEMO=1 npm start                             # http://localhost:8000, mot de pas
 | `public/tvs/calcul.js` | Moteur de calcul TVS 2026 (navigateur + tests) |
 | `public/tvs/app.js` | Interface de saisie du parc TVS |
 | `docs/TVS_2026_contexte.md` | Règles fiscales, algorithme et cas de test TVS 2026 |
+| `src/modules/caisse/` | Outil Import caisse : `routeur.js` + code Pennylane DG (importeurs, lib, sociétés, tests) |
+| `public/caisse/app.js` | Page d'import caisse |
+| `docs/Pennylane_DG_contexte.md` | Règles métier de l'import caisse (sociétés, comptes, écarts) |
 | `public/img/` | Logos Durand Godeau, Agora Experts, Cohortis Alliance |
 | `src/auth.js` | Connexion Microsoft 365 (Entra ID) |
 | `src/pennylane.js` | Appels à l'API Pennylane, et les données de démonstration |

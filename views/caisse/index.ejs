@@ -1,0 +1,140 @@
+<%- include('../partials/haut', { titre: 'Import caisse' }) %>
+<h1>Import caisse · Écritures de ventes dans Pennylane</h1>
+<p class="sous">Fichiers de caisse et de factures des clients transformés en écritures, contrôlés, puis créés dans leur dossier Pennylane.</p>
+
+<div class="caisse">
+  <!-- 1. Société et clé -->
+  <section class="carte" id="etape-societe">
+    <h2><span class="num">1</span> Société</h2>
+    <div class="grille2">
+      <label>Société
+        <select id="societe"><option value="">Chargement…</option></select>
+      </label>
+      <label>Clé API Pennylane de cette société
+        <input type="password" id="cle" autocomplete="off" spellcheck="false" placeholder="Collez la clé (jamais enregistrée)">
+      </label>
+    </div>
+    <p class="aide" id="info-societe"></p>
+    <div class="actions">
+      <button id="btn-connexion" class="principal">Se connecter</button>
+      <button id="btn-deconnexion" class="discret" hidden>Oublier la clé</button>
+    </div>
+    <div id="etat-connexion" class="etat" hidden></div>
+  </section>
+
+  <!-- 2. Fichier -->
+  <section class="carte" id="etape-fichier">
+    <h2><span class="num">2</span> Fichier à importer</h2>
+    <label class="depot" id="depot">
+      <input type="file" id="fichier">
+      <span id="nom-fichier">Déposez le fichier ici ou cliquez pour le choisir</span>
+    </label>
+    <p class="aide">Sans clé, l'analyse vérifie seulement la transformation (équilibre, TVA, encaissements). Avec la clé, elle vérifie aussi le journal, les comptes et les doublons dans Pennylane.</p>
+    <div class="actions">
+      <button id="btn-analyser" class="principal" disabled>Analyser</button>
+    </div>
+  </section>
+
+  <!-- 3. Résultat -->
+  <section class="carte" id="etape-resultat" hidden>
+    <h2><span class="num">3</span> Écritures</h2>
+    <div id="alertes-globales"></div>
+    <div class="chiffres" id="chiffres"></div>
+    <details id="bloc-rapprochement">
+      <summary>Rapprochement avec les totaux du fichier</summary>
+      <table class="rapprochement"><thead><tr><th>Poste</th><th class="n">Fichier</th><th class="n">Écritures</th><th class="n">Écart</th></tr></thead><tbody id="rapprochement"></tbody></table>
+    </details>
+    <div class="barre">
+      <label class="case"><input type="checkbox" id="tout-cocher"> Tout sélectionner (pièces prêtes)</label>
+      <button id="btn-export" class="discret">Exporter en CSV</button>
+    </div>
+    <div class="table-defile">
+      <table class="pieces">
+        <thead><tr><th></th><th>Date</th><th>Pièce</th><th>Libellé</th><th class="n">CA TTC</th><th class="n">Total écriture</th><th>Statut</th></tr></thead>
+        <tbody id="pieces"></tbody>
+      </table>
+    </div>
+    <div class="actions envoi">
+      <span id="resume-selection" class="aide"></span>
+      <button id="btn-envoyer" class="principal" disabled>Envoyer dans Pennylane</button>
+    </div>
+    <div id="resultats-envoi"></div>
+  </section>
+
+  <dialog id="confirmation">
+    <h3>Confirmer l'envoi</h3>
+    <p id="texte-confirmation"></p>
+    <div class="actions">
+      <button id="btn-annuler" class="discret">Annuler</button>
+      <button id="btn-confirmer" class="principal">Envoyer</button>
+    </div>
+  </dialog>
+
+  <div class="note">La clé API reste dans cet onglet et n'est jamais enregistrée. Les fichiers sont traités en mémoire, jamais stockés. Chaque analyse et chaque envoi sont tracés à votre nom (sans la clé ni le contenu du fichier).</div>
+</div>
+
+<style>
+  /* Styles de l'outil Pennylane DG, adaptés à la charte du portail et limités à cette page */
+  .caisse{--ok:var(--gd);--ok-fond:#e8f2e3;--ko:#b3261e;--ko-fond:#fbe9e7;--info:#7a5300;--info-fond:#fdf3dc;--gris-fond:#eff1ee;--accent-clair:#e8f2e3}
+  .caisse h2{display:flex;align-items:center;gap:10px;font-size:17px;color:var(--tx)}
+  .caisse .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:9px;background:var(--gd);color:#fff;font-size:13px;font-family:var(--f-title)}
+  .caisse .grille2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:680px){.caisse .grille2{grid-template-columns:1fr}}
+  .caisse label{display:grid;gap:6px;font-weight:600;font-size:14px;color:var(--tx);margin:0}
+  .caisse select{font:inherit;padding:9px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:inherit;width:100%}
+  .caisse select:focus,.caisse button:focus-visible{outline:2px solid var(--g2);outline-offset:1px}
+  .caisse .aide{color:var(--tm);font-size:13.5px;margin:10px 0 0}
+  .caisse .actions.envoi{justify-content:space-between}
+  .caisse button{font:inherit;font-weight:600;border-radius:100px;padding:9px 18px;cursor:pointer;border:1px solid var(--bd);background:#fff;color:var(--gd)}
+  .caisse button:hover:not(:disabled){background:var(--gl);border-color:var(--g2)}
+  .caisse button.principal{background:var(--gd);border-color:var(--gd);color:#fff}
+  .caisse button.principal:hover:not(:disabled){background:#2a4721;border-color:#2a4721}
+  .caisse button.discret{background:transparent}
+  .caisse button:disabled{opacity:.45;cursor:not-allowed}
+  .caisse .etat{margin-top:14px;padding:10px 12px;border-radius:12px;font-size:14px}
+  .caisse .etat.ok{background:var(--ok-fond);color:var(--ok)}
+  .caisse .etat.ko{background:var(--ko-fond);color:var(--ko)}
+  .caisse .etat.info{background:var(--info-fond);color:var(--info)}
+  .caisse .depot{display:block;border:2px dashed var(--bd);border-radius:14px;padding:26px;text-align:center;cursor:pointer;font-weight:500;color:var(--tm);background:var(--gp)}
+  .caisse .depot.survol{border-color:var(--g2);background:var(--gl)}
+  .caisse .depot input{display:none}
+  .caisse .depot span{overflow-wrap:anywhere}
+  .caisse #alertes-globales .etat{margin:0 0 12px}
+  .caisse .chiffres{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+  .caisse .chiffre{background:var(--gris-fond);border-radius:12px;padding:10px 12px}
+  .caisse .chiffre b{display:block;font-size:20px;font-variant-numeric:tabular-nums;font-family:var(--f-title)}
+  .caisse .chiffre span{color:var(--tm);font-size:13px}
+  .caisse .chiffre.ca{background:var(--accent-clair);border-left:4px solid var(--g1);grid-column:span 2}
+  .caisse .chiffre.ca b{font-size:22px;color:var(--gd)}
+  .caisse .ca-montants{display:flex;gap:22px;flex-wrap:wrap}
+  .caisse .ca-montants span{display:block}
+  .caisse .chiffre.ca .ca-ttc{display:block;margin-top:6px;font-size:12.5px}
+  @media (max-width:680px){.caisse .chiffre.ca{grid-column:1 / -1}}
+  .caisse details{margin-bottom:14px}
+  .caisse summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--gd)}
+  .caisse .barre{display:flex;justify-content:space-between;align-items:center;margin:8px 0;flex-wrap:wrap;gap:8px}
+  .caisse label.case{display:flex;align-items:center;gap:8px;font-weight:500}
+  .caisse .table-defile{overflow-x:auto}
+  .caisse .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .caisse tr.piece{cursor:pointer}
+  .caisse tr.piece:hover td{background:var(--gris-fond)}
+  .caisse tr.detail td{background:var(--gris-fond);padding:6px 8px 12px 40px}
+  .caisse tr.detail table{font-size:13px}
+  .caisse tr.detail td td,.caisse tr.detail th{border:none;padding:3px 8px}
+  .caisse .badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .caisse .badge.prete{background:var(--ok-fond);color:var(--ok)}
+  .caisse .badge.bloquee{background:var(--ko-fond);color:var(--ko)}
+  .caisse .badge.deja{background:var(--gris-fond);color:var(--tm)}
+  .caisse .badge.envoyee{background:var(--gd);color:#fff}
+  .caisse .raisons{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--ko)}
+  .caisse .infos{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--tm)}
+  .caisse .alertes{margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--info)}
+  .caisse .rapprochement td.ecart{color:var(--ko);font-weight:600}
+  .caisse dialog{border:1px solid var(--bd);border-radius:18px;background:#fff;color:var(--tx);max-width:480px;width:calc(100% - 32px);padding:22px}
+  .caisse dialog::backdrop{background:rgba(30,33,24,.45)}
+  .caisse dialog h3{margin-top:0;color:var(--gd)}
+  .caisse > *{min-width:0}
+</style>
+<script>window.CAISSE_BASE = <%- JSON.stringify(base) %>; window.CAISSE_CSRF = <%- JSON.stringify(csrf) %>;</script>
+<script src="/static/caisse/app.js" defer></script>
+<%- include('../partials/bas') %>

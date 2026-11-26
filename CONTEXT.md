@@ -18,7 +18,7 @@ L'**Assistant 471** est un site web interne qui, pour un dossier client :
 Depuis la V5, le site est un **portail multi-outils**, « Mes outils de gestion ».
 
 - Il reprend la charte de l'espace « Pôle social » réalisé par une collaboratrice : logos Durand Godeau / Agora Experts / Cohortis Alliance, vert `#6ebc5a` / `#345829`, polices Sora et DM Sans, accueil en « livret » avec tuiles.
-- L'Assistant 471 est la première brique, à l'adresse `/471`. TVS 2026 est annoncée en « Bientôt disponible », et d'autres briques suivront.
+- Briques en service : **Assistant 471** (`/471`), **TVS 2026** (`/tvs`) et **Import caisse** (`/caisse`, ex-Pennylane DG). D'autres suivront.
 - Toutes les briques partagent la connexion Microsoft 365, le journal d'activité et l'habillage.
 
 ## 2. Règles métier (Assistant 471)
@@ -63,6 +63,35 @@ La référence complète est **`docs/TVS_2026_contexte.md`** : barèmes, algorit
 
 **Mise à jour annuelle** (TVS 2027…) : dupliquer la brique, puis adapter `BAREMES`, `POLLUANTS`, `ANNEE` et `NB_JOURS` dans `calcul.js`, ainsi que les cas de test.
 
+## 2 ter. Brique Import caisse (`/caisse`)
+
+C'est l'ancien site **Pennylane DG** (pennylane-dg.onrender.com), intégré au portail le 26/11/2026.
+Il transforme les fichiers de ventes des clients (caisses Jalia, exports d'écritures, tableau Excel SOLAU, factures HHM) en écritures, puis les crée dans leur dossier Pennylane.
+La référence métier complète est **`docs/Pennylane_DG_contexte.md`** : sociétés, comptes, règles des écarts 658 / 758 / 471, doublons et liste « À faire ».
+
+**Le code**
+
+- Le code métier est **repris sans modification** dans `src/modules/caisse/` (`importeurs/`, `lib/`, `societes/`, `outils/`, `test/`). Ses 62 tests tournent avec `npm test`, dont 4 tests sur vrais fichiers, à activer par variables d'environnement.
+- `src/modules/caisse/routeur.js` remplace l'ancien `server.js`. Il garde les mêmes API (`/caisse/api/societes`, `connexion`, `analyser`, `envoyer`) et les mêmes garde-fous :
+  - fichiers de 10 Mo maximum ;
+  - 200 requêtes par tranche de 10 minutes et par IP ;
+  - nouvelle analyse au moment de l'envoi, et envoi des seules pièces « prêtes » ;
+  - arrêt sur erreur 401 ou 403.
+
+**Ce qui s'ajoute avec le portail**
+
+- La **connexion Microsoft 365 est obligatoire**. Une session expirée renvoie un 401 en JSON.
+- Un **jeton anti-CSRF** (en-tête `X-CSRF`) est exigé sur toutes les requêtes POST.
+- Le **journal** note, au nom de la personne : `connexion_pennylane` (avec le dossier ouvert), `analyse` (nombre de pièces prêtes, bloquées, déjà envoyées) et `envoi_pennylane` (pièces créées et montant).
+
+**Clé API Pennylane**
+
+- Il y a toujours **une clé par société**. Elle est collée dans la page et vidée au changement de société.
+- Elle n'est jamais stockée ni journalisée : les tests le vérifient.
+- La fiche société peut porter `pennylaneCompanyId` si l'on passe un jour à un jeton cabinet, mais ce passage n'a pas été décidé.
+
+**Bascule depuis l'ancien site** : faire un premier envoi réel d'une journée depuis `/caisse`, puis suspendre le service `pennylane-dg` sur Render et archiver son dépôt GitHub.
+
 ## 3. Parcours utilisateur (Assistant 471)
 
 1. Connexion individuelle avec le **compte Microsoft 365** du collaborateur (bouton « Se connecter avec Microsoft »). Le nom de la personne s'affiche ensuite en haut à droite. Le mot de passe commun `APP_PASSWORD` ne sert que tant que Microsoft n'est pas configuré.
@@ -85,7 +114,9 @@ src/modules/index.js registre des briques (tuiles) ; routeur: null = « Bientôt
 src/modules/assistant471.js  brique Assistant 471 (routes /471/…)
 src/modules/tvs.js   brique TVS 2026 (page /tvs + journal)
 public/tvs/          calcul.js (moteur TVS, partagé navigateur/tests) et app.js (interface)
-docs/                TVS_2026_contexte.md (règles fiscales de référence)
+src/modules/caisse/  brique Import caisse : routeur.js + code Pennylane DG inchangé (importeurs, lib, societes, outils, test)
+public/caisse/       app.js (page d'import)
+docs/                TVS_2026_contexte.md, Pennylane_DG_contexte.md (références métier)
 public/img/          logos du cabinet (servis sous /static/img/)
 src/auth.js          connexion Microsoft Entra ID (OpenID Connect + PKCE, sans bibliothèque)
 src/pennylane.js     client API Pennylane (+ classe Demo : données fictives)
@@ -110,6 +141,9 @@ render.yaml          configuration Render (Blueprint)
 | `GET /tvs` | TVS 2026 : saisie et vérification du parc |
 | `POST /tvs/journal` | trace d'un export / enregistrement TVS (action, client, nb véhicules ; CSRF) |
 | `GET /static/tvs/calcul.js`, `app.js` | moteur de calcul et interface TVS |
+| `GET /caisse` | Import caisse : page d'import |
+| `GET /caisse/api/societes` | sociétés paramétrées |
+| `POST /caisse/api/connexion`, `analyser`, `envoyer` | connexion Pennylane (clé en en-tête), analyse, envoi (CSRF en en-tête `X-CSRF`) |
 | `GET /dossier/…` | anciennes adresses, redirigées (301) vers `/471/dossier/…` |
 | `GET /static/img/…` | logos |
 | `GET /sante` | contrôle de santé pour l'hébergeur |
@@ -194,6 +228,7 @@ DEMO=1 npm start      # http://localhost:8000, mot de passe « demo »
 | 24/11/2026 | V4 : **connexion individuelle Microsoft 365** (Entra ID), nom affiché, journal d'activité ; guide `GUIDE_MICROSOFT.md` |
 | 24/11/2026 | V5 : **portail multi-outils** aux couleurs du cabinet ; Assistant 471 déplacé sous `/471` ; tuile TVS 2026 « bientôt » |
 | 25/11/2026 | V6 : **brique TVS 2026** (calcul CO₂ + polluants, parc, JSON/CSV), validée sur les 8 cas de référence |
+| 26/11/2026 | V7 : **brique Import caisse** (ex-Pennylane DG) intégrée sous `/caisse` : connexion Microsoft, CSRF, journal nominatif ; 100 tests |
 
 ## 9. Ajouter une brique
 1. **Code** : créez `src/modules/mon-outil.js`, qui exporte une fonction `(ctx) => express.Router()`. Prenez `src/modules/assistant471.js` comme modèle.
@@ -208,6 +243,8 @@ La connexion Microsoft, le journal d'activité et la sécurité s'appliquent aut
 Le libellé du pôle sur l'accueil se règle avec la variable `PORTAIL_POLE` (défaut « Pôle comptable »).
 
 ## 10. Points ouverts et pistes
+
+- **Import caisse** : premier envoi réel depuis `/caisse`, puis arrêt de l'ancien service `pennylane-dg` et archivage de son dépôt. Les tâches par société restent celles de `docs/Pennylane_DG_contexte.md` §6 (BDP, COTE PISTE, SOLAU, HHM).
 
 - **TVS 2026** : faire valider les résultats par un collaborateur fiscaliste sur quelques vrais dossiers ; trancher le point ouvert du tarif polluants au 01/03/2026 dès que la doctrine est publiée (choisir le mode par défaut).
 - TVS : pistes éventuelles, à savoir l'import d'un parc depuis Excel ou CSV et la gestion des indemnités kilométriques, aujourd'hui hors champ.

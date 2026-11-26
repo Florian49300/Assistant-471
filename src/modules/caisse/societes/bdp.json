@@ -1,0 +1,35 @@
+{
+  "id": "bdp",
+  "nom": "BDP",
+  "importeur": "jalia-caisse",
+  "caisseId": "850",
+  "nomPennylane": "",
+  "journal": "CA",
+  "regroupement": "jour",
+  "prefixePiece": "Z",
+  "paiements": {
+    "due clients":      { "compte": "411",   "libelle": "DUE CLIENTS" },
+    "Chèque":           { "compte": "5112",  "libelle": "CHEQUE" },
+    "Titre restaurant": { "compte": "5114",  "libelle": "TITRE RESTAURANT" },
+    "carte resto":      { "compte": "5114",  "libelle": "CARTE RESTO" },
+    "cheque vacance":   { "compte": "51141", "libelle": "CHEQUES VACANCES" },
+    "Carte de crédit":  { "compte": "5115",  "libelle": "REMISE CB" },
+    "sumup":            { "compte": "51151", "libelle": "CB SUMUP" },
+    "Espèces":          { "compte": "531",   "libelle": "CAISSE" }
+  },
+  "pourboires": { "compte": "467", "libelle": "POURBOIRES A REVERSER" },
+  "tva": {
+    "5.5": { "compteVente": "706130000", "compteTva": "44571006", "libelle": "5,5 %" },
+    "10":  { "compteVente": "706110000", "compteTva": "44571008", "libelle": "10 %" },
+    "20":  { "compteVente": "706120000", "compteTva": "44571009", "libelle": "20 %" }
+  },
+  "toleranceTvaCentimes": 2,
+  "_ecarts": "Écart de caisse de la journée : moins de 1 € en 658 (manque) ou 758 (excédent) ; 1 € et plus en 471000000 (compte d'attente).",
+  "petitsEcarts": {
+    "seuilCentimes": 100,
+    "compteManque":   { "compte": "658", "libelle": "Ecart de caisse" },
+    "compteExcedent": { "compte": "758", "libelle": "Ecart de caisse" }
+  },
+  "compteEcart": { "compte": "471000000", "libelle": "Ecart de caisse" },
+  "comptesForces": {}
+}

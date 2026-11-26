@@ -1,0 +1,16 @@
+{
+  "_aide": "Copier ce fichier en societes/<id>.json (sans '_' devant) pour ajouter une société au menu.",
+  "id": "identifiant-court-unique",
+  "nom": "Nom affiché dans le menu déroulant",
+  "importeur": "jalia-caisse",
+  "caisseId": "",
+  "nomPennylane": "Nom exact de la société dans Pennylane (contrôle à la connexion, facultatif)",
+  "journal": "CA",
+  "regroupement": "jour",
+  "prefixePiece": "Z",
+  "paiements": {},
+  "pourboires": { "compte": "467", "libelle": "POURBOIRES A REVERSER" },
+  "tva": {},
+  "toleranceTvaCentimes": 2,
+  "comptesForces": { "_exemple_numero_fichier": "numero_dans_pennylane" }
+}

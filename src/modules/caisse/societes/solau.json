@@ -1,0 +1,35 @@
+{
+  "id": "solau",
+  "nom": "SOLAU",
+  "importeur": "tableau-caisse",
+  "nomPennylane": "",
+  "journal": "C1",
+  "formatPiece": "{jj}/{mm}/{aaaa}",
+  "libellePiece": "CAISSE {jj}/{mm}/{aaaa}",
+
+  "_paiements": "Colonnes de paiement du tableau (entre JOUR et TOTAL) -> compte Pennylane, repris du plan comptable SOLAU dans Pennylane (CB, chèques, bons cadeaux) et du tableau LCH (espèces, CB en ligne, différé). Une colonne non nulle absente d'ici bloque la journée (c'est le cas de CB EN LIGNE : plus de ventes en ligne).",
+  "paiements": {
+    "CB":          { "compte": "511100000",  "libelle": "Paiements CB" },
+    "ESPECE":      { "compte": "53100000",   "libelle": "Paiements Espèces" },
+    "CHQ":         { "compte": "511200000",  "libelle": "Paiements Chèques" },
+    "BON CADEAUX": { "compte": "511300000",  "libelle": "Paiements bons cadeaux" },
+    "NON REGLE":   { "compte": "411DIFFERE", "libelle": "Paiements différés" }
+  },
+
+  "_tva": "TVA reprise du tableau de caisse (HT + TVA = encaissements). Mettre tvaRecalculee à true pour recalculer HT × taux comme le tableau LCH.",
+  "tvaRecalculee": false,
+  "tva": {
+    "10":  { "colonneHt": "HT 10%",   "colonneTva": "TVA 10%",   "compteVente": "70110000", "compteTva": "44571008", "libelleVente": "Recettes 10%",  "libelleTva": "TVA 10%" },
+    "20":  { "colonneHt": "HT 20%",   "colonneTva": "TVA 20%",   "compteVente": "70121000", "compteTva": "44571009", "libelleVente": "Recettes 20%",  "libelleTva": "TVA 20%" },
+    "5.5": { "colonneHt": "HT 5,50%", "colonneTva": "TVA 5,50%", "compteVente": "70150000", "compteTva": "44571006", "libelleVente": "Recettes 5,5%", "libelleTva": "TVA 5,5%" }
+  },
+
+  "_ecarts": "Écart de caisse de la journée : moins de 1 € en 658 (manque) ou 758 (excédent) ; 1 € et plus en 471000000 (compte d'attente).",
+  "petitsEcarts": {
+    "seuilCentimes": 100,
+    "compteManque":   { "compte": "658", "libelle": "Ecart de caisse" },
+    "compteExcedent": { "compte": "758", "libelle": "Ecart de caisse" }
+  },
+  "compteEcart": { "compte": "471000000", "libelle": "Ecart de caisse" },
+  "comptesForces": {}
+}
