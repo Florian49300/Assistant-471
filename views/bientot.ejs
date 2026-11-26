@@ -1,0 +1,11 @@
+<%- include('partials/haut', { titre: m.titre }) %>
+<div class="carte" style="max-width:620px;margin:30px auto;text-align:center;padding:36px 28px">
+  <div style="width:64px;height:64px;border-radius:18px;background:var(--tx);color:var(--g1);display:grid;place-items:center;margin:0 auto 16px" aria-hidden="true">
+    <span style="width:32px;height:32px;display:block"><%- m.icone %></span>
+  </div>
+  <h1 style="text-transform:uppercase;letter-spacing:.04em;color:var(--gd)"><%= m.titre %></h1>
+  <p class="sous" style="margin:8px 0 18px"><%= m.description %></p>
+  <div class="note" style="text-align:left">Cet outil est en préparation. Il apparaîtra ici dès qu'il sera prêt.</div>
+  <div class="actions" style="justify-content:center"><a class="btn sec" href="/">← Retour à mes outils</a></div>
+</div>
+<%- include('partials/bas') %>

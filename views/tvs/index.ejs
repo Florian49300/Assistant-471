@@ -1,0 +1,73 @@
+<%- include('../partials/haut', { titre: 'TVS 2026' }) %>
+<h1>TVS 2026 · Vérification du calcul</h1>
+<p class="sous">Taxes sur l'affectation des véhicules de tourisme à des fins économiques, année 2026 (déclaration en janvier 2027) : taxe CO₂ + taxe polluants.</p>
+
+<div class="carte">
+  <div class="grille barre">
+    <div><label for="client">Client / dossier</label><input id="client" type="text" placeholder="Nom du client (pour les fichiers)" autocomplete="off"></div>
+    <div><label for="polMode">Tarif polluants 2026</label>
+      <select id="polMode">
+        <option value="annuel">Tarif 2026 sur toute l'année (lecture usuelle)</option>
+        <option value="mars">Ancien tarif jusqu'au 28/02, tarif 2026 dès le 01/03</option>
+      </select></div>
+  </div>
+  <div class="actions">
+    <button class="btn" type="button" id="ajouter">+ Ajouter un véhicule</button>
+    <label class="btn sec" for="fichier" tabindex="0">Ouvrir un parc (.json)</label>
+    <input id="fichier" type="file" accept=".json,application/json" hidden>
+    <button class="btn sec" type="button" id="enregistrer">Enregistrer le parc (.json)</button>
+    <button class="btn sec" type="button" id="csv">Export CSV</button>
+    <button class="btn sec danger" type="button" id="vider">Nouveau parc</button>
+  </div>
+  <p class="muted" id="brouillon" style="margin:10px 0 0">Brouillon conservé automatiquement sur ce poste. Pour l'archiver ou le partager, enregistrez le parc en .json.</p>
+</div>
+
+<div id="vehicules"></div>
+
+<div class="carte" id="recap"></div>
+
+<div class="note">L'outil est une aide à la vérification et ne remplace pas l'analyse d'un professionnel. Hors champ : véhicules personnels remboursés en indemnités kilométriques (coefficient pondérateur et minoration de 15 000 €), véhicules utilitaires, taxe TAFCO.</div>
+
+<style>
+  select{font:inherit;padding:9px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:inherit;width:100%}
+  select:focus{outline:2px solid var(--g2);outline-offset:-1px}
+  .barre{grid-template-columns:minmax(220px,1fr) minmax(260px,1.3fr)}
+  .btn.danger{color:#b42318}
+  label.btn{margin:0;color:var(--gd);font-size:15px}
+  .veh{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);gap:22px;align-items:start}
+  .veh-tete{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .veh-tete h2{margin:0;flex:1}
+  .veh-tete .num{font-family:var(--f-title);font-weight:700;font-size:12px;color:#fff;background:var(--gd);border-radius:9px;padding:4px 9px}
+  .mini{font:inherit;font-size:13px;font-weight:600;background:none;border:0;color:var(--gd);cursor:pointer;padding:4px 6px;border-radius:6px}
+  .mini:hover{background:var(--gl)}
+  .mini.suppr{color:#b42318}
+  .champs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .champ.cache{display:none}
+  .aide{font-size:12px;color:var(--tm);margin-top:3px}
+  .bloc{margin-top:16px}
+  .bloc h3{font-size:13px;margin:0 0 8px;color:var(--gd);text-transform:uppercase;letter-spacing:.06em}
+  .per{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .per input{width:auto;flex:1;min-width:140px}
+  .exos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px}
+  .exos label{display:flex;gap:8px;align-items:flex-start;color:var(--tx);font-size:14px;margin:0;cursor:pointer}
+  .exos input{margin-top:4px;accent-color:var(--gd)}
+  .res{background:var(--gp);border:1px solid var(--bd);border-radius:16px;padding:16px 18px;position:sticky;top:12px}
+  .res .tot{font-family:var(--f-title);font-size:30px;font-weight:700;color:var(--tx);line-height:1.1}
+  .res .tot small{font-size:13px;font-weight:600;color:var(--tm);display:block;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+  .res dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:12px 0 0;font-size:14px}
+  .res dt{color:var(--tm)} .res dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .statut{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 12px;border-radius:100px;font-size:13px;font-weight:600}
+  .statut.ok{background:#e3f4dd;color:var(--rec)} .statut.ko{background:#fdecea;color:#b42318} .statut.na{background:#fff;color:var(--tm);border:1px solid var(--bd)}
+  .alerte{margin-top:10px;padding:8px 12px;border-radius:10px;background:#fff8db;border:1px solid #f2e3a0;font-size:13px}
+  .info{margin-top:10px;padding:8px 12px;border-radius:10px;background:#fff;border:1px solid var(--bd);font-size:13px;color:var(--gr)}
+  details{margin-top:12px;font-size:13px}
+  summary{cursor:pointer;font-weight:600;color:var(--gd)}
+  details table{font-size:13px;margin-top:8px;background:#fff}
+  details th,details td{padding:4px 8px}
+  .recap td.nom{font-weight:600}
+  @media (max-width:900px){ .veh{grid-template-columns:1fr} .res{position:static} .barre{grid-template-columns:1fr} }
+</style>
+<script src="/static/tvs/calcul.js"></script>
+<script>window.TVS_CSRF = <%- JSON.stringify(csrf) %>;</script>
+<script src="/static/tvs/app.js"></script>
+<%- include('../partials/bas') %>

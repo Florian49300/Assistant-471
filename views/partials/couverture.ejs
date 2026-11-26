@@ -1,0 +1,36 @@
+<%# Couverture du livret : décor, logos, bandeau titre. Paramètres : tag, titre (HTML autorisé), contenu (HTML) %>
+<section class="cover">
+  <div class="facets"></div>
+  <div class="ribbon" aria-hidden="true">
+    <svg viewBox="0 0 260 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="greyWave" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e9e9e9"/><stop offset="45%" stop-color="#8f8f8f"/><stop offset="55%" stop-color="#f2f2f2"/><stop offset="100%" stop-color="#8a8a8a"/></linearGradient></defs>
+      <path d="M 260,0 L 112,0 C 160,350 160,650 112,1000 L 260,1000 Z" fill="#1e2118"/>
+      <path d="M 82,0 C 128,350 128,650 82,1000" fill="none" stroke="url(#greyWave)" stroke-width="16"/>
+      <path d="M 56,0 C 100,350 100,650 56,1000" fill="none" stroke="#6ebc5a" stroke-width="7"/>
+    </svg>
+  </div>
+  <div class="halfcircle"></div><div class="dotgrid"></div><div class="dotgrid2"></div>
+  <% if (connecte) { %>
+  <div class="coin"><span class="qui" title="<%= utilisateur.email %>"><i></i><span><%= utilisateur.nom %></span></span><a class="deco" href="/logout">Se déconnecter</a></div>
+  <% } %>
+  <div class="inner">
+    <div class="logos">
+      <img class="logo-dg" src="/static/img/logo-dg.jpg" alt="Durand Godeau &amp; Associés">
+      <img class="logo-agora" src="/static/img/logo-agora.png" alt="Agora Experts">
+    </div>
+    <div class="tag"><%= tag %></div>
+    <div class="titlebox"><h1><%- titre %></h1></div>
+    <%- contenu %>
+    <div class="dotrow" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  </div>
+  <div class="cover-foot">
+    <div class="badge"><i></i><span class="date-du-jour">Aujourd'hui</span></div>
+    <img class="logo-cohortis" src="/static/img/logo-cohortis.png" alt="Cohortis Alliance">
+  </div>
+</section>
+<script>
+  (function () {
+    var j = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.querySelectorAll('.date-du-jour').forEach(function (e) { e.textContent = j.charAt(0).toUpperCase() + j.slice(1); });
+  })();
+</script>

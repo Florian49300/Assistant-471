@@ -1,4 +1,14 @@
-# Assistant 471 – Cabinet DG (Node.js)
+# Portail « Mes outils de gestion » – Cabinet Durand Godeau (Node.js)
+
+Portail interne aux couleurs du cabinet, avec une connexion Microsoft 365 unique. Il regroupe plusieurs outils :
+
+| Adresse | Outil |
+|---|---|
+| `/` | Accueil : tuiles des outils |
+| `/471` | **Assistant 471** : comptes d'attente Pennylane |
+| `/tvs` | **TVS 2026** : vérification des taxes sur les véhicules de tourisme (CO₂ + polluants) |
+
+## Assistant 471
 
 Site web interne qui, pour un dossier Pennylane choisi :
 
@@ -13,7 +23,7 @@ Le .eml s'ouvre dans Outlook comme un nouveau message prêt à envoyer.
 ## 1. Mettre le code sur GitHub
 
 1. Sur github.com, créez un dépôt **privé** (par ex. `assistant-471`).
-2. Cliquez sur **uploading an existing file** et glissez-y **le contenu** du dossier décompressé : `src`, `views`, `test`, `package.json`, `package-lock.json`, `render.yaml`, `README.md` et `.gitignore`.
+2. Cliquez sur **uploading an existing file** et glissez-y **le contenu** du dossier décompressé : `src`, `views`, `public`, `test`, `package.json`, `package-lock.json`, `render.yaml`, les fichiers `.md` et `.gitignore`.
 3. Validez avec **Commit changes**.
 
 > Ne déposez jamais le jeton Pennylane ni un mot de passe dans GitHub. Ils se saisissent uniquement dans Render (étape 3).
@@ -33,7 +43,7 @@ Le jeton ne s'affiche qu'une fois : copiez-le tout de suite.
 2. Cliquez sur **New > Blueprint** et choisissez le dépôt `assistant-471`. Render lit le fichier `render.yaml`, qui prévoit un serveur à Francfort, dans l'UE.
 3. Render demande deux valeurs secrètes :
    - `PENNYLANE_TOKEN` : le jeton de l'étape 2
-   - `APP_PASSWORD` : un mot de passe solide pour accéder au site, à partager avec l'équipe
+   - `APP_PASSWORD` : un mot de passe commun provisoire. Il sera remplacé par la connexion Microsoft 365 : voir **GUIDE_MICROSOFT.md**.
 4. Cliquez sur **Apply**. Après 2 à 3 minutes, le site est disponible à une adresse du type `https://assistant-471.onrender.com`.
 
 Le `render.yaml` prévoit l'offre *Starter*, qui est payante mais reste toujours allumée. Pour un simple essai, vous pouvez remplacer `plan: starter` par `plan: free` : le site se met alors en veille après 15 minutes et met environ 30 secondes à se réveiller.
@@ -49,8 +59,8 @@ Variables facultatives, modifiables dans Render > Environment :
 
 ## 4. Utilisation
 
-1. Connectez-vous avec le mot de passe.
-2. **Choisissez le dossier** : la liste vient de Pennylane. Tapez le nom ou le code client pour filtrer, puis cliquez sur le dossier (ou appuyez sur Entrée).
+1. Connectez-vous avec **Se connecter avec Microsoft** et votre compte @cabinet-dg.fr. Le mot de passe commun ne sert que tant que Microsoft n'est pas configuré.
+2. Sur l'accueil, ouvrez la tuile **Assistant 471**, puis **choisissez le dossier** : la liste vient de Pennylane. Tapez le nom ou le code client pour filtrer, puis cliquez sur le dossier (ou appuyez sur Entrée).
 3. Si besoin, réglez une période, puis vérifiez les opérations affichées.
 4. Saisissez le destinataire, ajustez le texte si besoin, puis cliquez sur **Télécharger le mail (.eml)**.
 5. Ouvrez le .eml dans Outlook, relisez-le et envoyez-le.
@@ -70,15 +80,35 @@ DEMO=1 npm start                             # http://localhost:8000, mot de pas
 
 | Fichier | Rôle |
 |---|---|
-| `src/server.js` | Site web (Express) : connexion, pages, téléchargements |
+| `src/server.js` | Socle du portail : connexion, sessions, sécurité, journal, accueil |
+| `src/modules/index.js` | Registre des outils (tuiles de l'accueil) |
+| `src/modules/assistant471.js` | Outil Assistant 471 (pages et téléchargements) |
+| `src/modules/tvs.js` | Outil TVS 2026 (page + journal) |
+| `public/tvs/calcul.js` | Moteur de calcul TVS 2026 (navigateur + tests) |
+| `public/tvs/app.js` | Interface de saisie du parc TVS |
+| `docs/TVS_2026_contexte.md` | Règles fiscales, algorithme et cas de test TVS 2026 |
+| `public/img/` | Logos Durand Godeau, Agora Experts, Cohortis Alliance |
+| `src/auth.js` | Connexion Microsoft 365 (Entra ID) |
 | `src/pennylane.js` | Appels à l'API Pennylane, et les données de démonstration |
 | `src/retraitement.js` | Filtre des lignes non lettrées et sens Dépense / Recette |
 | `src/documents.js` | Génération de l'Excel client et du brouillon .eml |
-| `views/` | Pages HTML (modèles EJS) |
+| `views/` | Pages : `portail` (accueil), `login`, `partials/` (en-tête, couverture), `471/` (Assistant 471) |
+
+## Ajouter un outil (une « brique ») au portail
+
+1. **Code** : créez `src/modules/mon-outil.js`, qui exporte une fonction `(ctx) => express.Router()`. Prenez `src/modules/assistant471.js` comme modèle.
+   `ctx` fournit les outils communs : `connexionRequise`, `verifierCsrf`, `journal`, `HttpError`, `telechargement` et `DEMO`.
+2. **Pages** : créez le dossier `views/mon-outil/`. Chaque page commence par `<%- include('../partials/haut', { titre: '…' }) %>` et se termine par `<%- include('../partials/bas') %>`.
+   Elle reçoit ainsi l'en-tête, le fil d'Ariane, la connexion et les styles du cabinet. Dans la page, `base` vaut l'adresse de l'outil (ex. `/mon-outil`).
+3. **Tuile** : ajoutez une entrée dans `src/modules/index.js` avec : `id`, `titre`, `description`, `tags`, `icone`, `chemin` et `routeur`.
+   Avec `routeur: null`, la tuile s'affiche en « Bientôt disponible ».
+
+La connexion Microsoft, le journal d'activité et la sécurité s'appliquent automatiquement au nouvel outil.
 
 ## Sécurité
 
 - Le jeton Pennylane reste côté serveur. Il n'est jamais envoyé au navigateur ni stocké dans GitHub.
-- L'accès au site est protégé par mot de passe, avec des sessions de 8 heures et une protection CSRF sur les téléchargements.
+- Chaque personne se connecte avec son compte Microsoft 365, avec des sessions de 8 heures et une protection CSRF sur les téléchargements.
+- Chaque action est tracée dans les logs Render (`journal`).
 - Rien n'est conservé sur le serveur : les fichiers sont générés à la demande puis oubliés.
 - Le jeton est en lecture seule : le site ne peut rien modifier dans Pennylane.

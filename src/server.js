@@ -1,44 +1,60 @@
 'use strict';
 /**
- * Assistant 471 - application web du Cabinet DG (Node.js / Express).
+ * Portail « Assistant comptable DG » - Cabinet Durand Godeau & Associés (Node.js / Express).
  *
- * Variables d'environnement :
- *   PENNYLANE_TOKEN     jeton API cabinet (lecture seule)   - obligatoire hors démo
- *   APP_PASSWORD        mot de passe d'accès au site        - obligatoire
- *   SECRET_KEY          clé de signature des sessions       - obligatoire (longue chaîne aléatoire)
- *   CABINET_SIGNATURE   signature du mail (\n = retour à la ligne)
- *   CABINET_EXPEDITEUR  adresse « De » du brouillon (facultatif)
- *   SEUIL               montant minimum retenu, en euros (défaut 0)
- *   DEMO=1              données fictives, aucun appel à Pennylane
+ * Le portail fournit le socle commun (connexion Microsoft 365, sessions, sécurité, journal,
+ * habillage) et héberge des briques indépendantes déclarées dans src/modules/index.js :
+ *   /471  Assistant 471 (comptes d'attente Pennylane)
+ *   /tvs  TVS 2026 (à venir)
+ *
+ * Variables d'environnement communes :
+ *   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, APP_BASE_URL, ALLOWED_DOMAINS
+ *                       connexion individuelle avec les comptes Microsoft 365 (voir src/auth.js)
+ *   APP_PASSWORD        mot de passe commun : utilisé seulement si Microsoft n'est pas configuré
+ *   SECRET_KEY          clé de signature des sessions - obligatoire (longue chaîne aléatoire)
+ *   PORTAIL_POLE        libellé du pôle affiché sur l'accueil (défaut « Pôle comptable »)
+ *   DEMO=1              données fictives, aucun appel externe
  *   PORT                port d'écoute (défaut 8000)
+ * Variables propres à chaque brique : voir l'en-tête de son fichier dans src/modules/.
  */
 const crypto = require('node:crypto');
 const path = require('node:path');
 const express = require('express');
 const cookieSession = require('cookie-session');
 
-const { Pennylane, Demo, PennylaneError } = require('./pennylane');
-const { totaux, euros, dateFr, nomFichier } = require('./retraitement');
-const {
-  TYPES, operationsDe, objetMail, nomExcel, texteAvant, texteApres, tableauxHtml, excelBuffer, emlBuffer,
-} = require('./documents');
+const { PennylaneError } = require('./pennylane');
+const auth = require('./auth');
+const { euros, dateFr } = require('./retraitement');
+const MODULES = require('./modules');
 
 const DEMO = process.env.DEMO === '1';
 const SECRET = process.env.SECRET_KEY || crypto.randomBytes(32).toString('hex');
-// Vide par défaut : on insère la signature Outlook dans le brouillon (Insertion > Signature)
-const SIGNATURE = (process.env.CABINET_SIGNATURE || '').replace(/\\n/g, '\n');
-const EXPEDITEUR = process.env.CABINET_EXPEDITEUR || '';
-const SEUIL = Number(String(process.env.SEUIL || '0').replace(',', '.')) || 0;
-const PASSWORD = process.env.APP_PASSWORD || (DEMO ? 'demo' : '');
+const POLE = process.env.PORTAIL_POLE || 'Pôle comptable';
+const MICROSOFT = auth.config().actif;
+// Le mot de passe commun ne sert que tant que la connexion Microsoft n'est pas configurée.
+const PASSWORD = MICROSOFT ? '' : process.env.APP_PASSWORD || (DEMO ? 'demo' : '');
 
-if (!DEMO && !process.env.PENNYLANE_TOKEN) console.warn('⚠ PENNYLANE_TOKEN non défini');
-if (!PASSWORD) console.warn('⚠ APP_PASSWORD non défini : personne ne pourra se connecter');
+console.log(MICROSOFT ? 'Connexion : comptes Microsoft 365' : 'Connexion : mot de passe commun (Microsoft non configuré)');
+if (!MICROSOFT && !PASSWORD) console.warn('⚠ Ni Microsoft ni APP_PASSWORD configurés : personne ne pourra se connecter');
+
+/** Journal d'activité : visible dans Render > Logs (une ligne JSON par action). */
+const journal = (req, action, details = {}) =>
+  console.log(JSON.stringify({
+    journal: action, date: new Date().toISOString(), utilisateur: req.session?.user?.email || req.session?.user?.nom || null, ...details,
+  }));
+
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
 
 const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.set('trust proxy', 1); // derrière le proxy HTTPS de l'hébergeur
 app.disable('x-powered-by');
+
+// Logos et images (mis en cache par le navigateur une journée)
+app.use('/static', express.static(path.join(__dirname, '..', 'public'), { maxAge: '1d', index: false }));
 
 app.use(express.urlencoded({ extended: false, limit: '200kb' }));
 app.use(cookieSession({
@@ -57,60 +73,30 @@ app.use((req, res, next) => {
     'Referrer-Policy': 'no-referrer',
     'Cache-Control': 'no-store',
   });
-  if (req.session.ok && !req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('base64url');
-  Object.assign(res.locals, { DEMO, connecte: !!req.session.ok, csrf: req.session.csrf || '', euros, dateFr, flash: null });
+  if (req.session.user && !req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('base64url');
+  Object.assign(res.locals, {
+    DEMO, MICROSOFT, POLE, motDePasse: Boolean(PASSWORD), utilisateur: req.session.user || null,
+    connecte: Boolean(req.session.user), csrf: req.session.csrf || '', euros, dateFr, flash: null,
+    module: null, base: '',
+  });
   next();
 });
 
 // --------------------------------------------------------------------------
-// Utilitaires
+// Outils communs, transmis aux briques
 // --------------------------------------------------------------------------
-function client() {
-  if (DEMO) return new Demo();
-  if (!process.env.PENNYLANE_TOKEN) throw new PennylaneError("PENNYLANE_TOKEN n'est pas configuré sur le serveur.");
-  return new Pennylane(process.env.PENNYLANE_TOKEN);
-}
-
-const cache = { t: 0, dossiers: [] };
-async function listeDossiers(force = false) {
-  if (force || !cache.dossiers.length || Date.now() - cache.t > 10 * 60 * 1000) {
-    cache.dossiers = await client().dossiers();
-    cache.t = Date.now();
-  }
-  return cache.dossiers;
-}
-
-class HttpError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
-}
-
-async function dossierParId(id) {
-  const d = (await listeDossiers()).find((x) => x.id === id);
-  if (!d) throw new HttpError(404, 'Dossier inconnu.');
-  return d;
-}
-
-function periode(req) {
-  const src = { ...req.query, ...(req.body || {}) };
-  const ok = (v) => !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)));
-  const depuis = String(src.depuis || '');
-  const jusqu = String(src.jusqu || '');
-  if (!ok(depuis) || !ok(jusqu)) throw new HttpError(400, 'Date invalide.');
-  return { depuis: depuis || null, jusqu: jusqu || null };
-}
-
-async function extraire(req) {
-  const info = await dossierParId(req.params.id);
-  return client().extraire(info.id, info.nom, { ...periode(req), seuil: SEUIL });
-}
-
 function egal(a, b) {
   const x = Buffer.from(String(a)), y = Buffer.from(String(b));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
 const connexionRequise = (req, res, next) =>
-  req.session.ok ? next() : res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
+  req.session.user ? next() : res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
+
+const suiteSure = (v) => {
+  const s = String(v || '');
+  return s.startsWith('/') && !s.startsWith('//') && !s.startsWith('/\\') ? s : '/';
+};
 
 const verifierCsrf = (req, res, next) =>
   req.session.csrf && egal(req.body?.csrf || '', req.session.csrf)
@@ -120,70 +106,80 @@ const verifierCsrf = (req, res, next) =>
 const telechargement = (res, nom, type, buf) =>
   res.set({ 'Content-Type': type, 'Content-Disposition': `attachment; filename="${nom}"` }).send(buf);
 
+const ctx = { DEMO, connexionRequise, verifierCsrf, journal, HttpError, telechargement };
+
 // --------------------------------------------------------------------------
-// Routes
+// Connexion
 // --------------------------------------------------------------------------
 app.get('/sante', (req, res) => res.json({ ok: true }));
 
-app.get('/login', (req, res) => res.render('login'));
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/');
+  res.render('login', { suite: suiteSure(req.query.next) });
+});
 
+app.get('/auth/microsoft', (req, res) => {
+  if (!MICROSOFT) return res.redirect('/login');
+  const { url, etat } = auth.urlConnexion(suiteSure(req.query.next));
+  req.session = { auth: etat };
+  res.redirect(url);
+});
+
+app.get('/auth/callback', async (req, res) => {
+  if (!MICROSOFT) return res.redirect('/login');
+  const etat = req.session.auth;
+  try {
+    const user = await auth.traiterRetour(req.query, etat);
+    req.session = { user };
+    journal(req, 'connexion', { methode: 'microsoft' });
+    res.redirect(suiteSure(etat && etat.suite));
+  } catch (e) {
+    if (!(e instanceof auth.AuthError)) throw e;
+    req.session = null;
+    console.warn(JSON.stringify({ journal: 'connexion_refusee', date: new Date().toISOString(), motif: e.message }));
+    res.status(403).render('login', { flash: e.message, suite: '/' });
+  }
+});
+
+// Mot de passe commun (secours, uniquement si Microsoft n'est pas configuré)
 app.post('/login', async (req, res) => {
   if (PASSWORD && egal(req.body.password || '', PASSWORD)) {
-    req.session = { ok: true };
-    const next = String(req.query.next || '');
-    return res.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/');
+    req.session = { user: { nom: 'Accès commun', email: '' } };
+    journal(req, 'connexion', { methode: 'mot_de_passe' });
+    return res.redirect(suiteSure(req.query.next));
   }
   await new Promise((r) => setTimeout(r, 1500)); // ralentit les essais de mot de passe
-  res.status(401).render('login', { flash: 'Mot de passe incorrect.' });
+  res.status(401).render('login', { flash: PASSWORD ? 'Mot de passe incorrect.' : 'Connexion par mot de passe désactivée.', suite: '/' });
 });
 
 app.get('/logout', (req, res) => {
+  journal(req, 'deconnexion');
   req.session = null;
-  res.redirect('/login');
+  res.redirect('/login?deconnecte=1');
 });
 
-app.get('/', connexionRequise, async (req, res) => {
-  const dossiers = await listeDossiers(req.query.rafraichir === '1');
-  res.render('index', { dossiers });
-});
+// --------------------------------------------------------------------------
+// Accueil du portail + briques
+// --------------------------------------------------------------------------
+app.get('/', connexionRequise, (req, res) => res.render('portail', { modules: MODULES }));
 
-app.get('/dossier/:id', connexionRequise, async (req, res) => {
-  const d = await extraire(req);
-  const { depuis, jusqu } = periode(req);
-  res.render('dossier', {
-    d,
-    info: await dossierParId(req.params.id),
-    t: totaux(d.operations),
-    depenses: operationsDe(d, 'depenses'),
-    recettes: operationsDe(d, 'recettes'),
-    depuis: depuis || '',
-    jusqu: jusqu || '',
-    objet: objetMail(d),
-    avant: texteAvant(d),
-    apres: texteApres(d),
-    tableaux: d.operations.length ? tableauxHtml(d) : '',
-    signature: SIGNATURE,
-  });
-});
+for (const m of MODULES) {
+  if (m.routeur) {
+    app.use(
+      m.chemin,
+      (req, res, next) => { res.locals.module = m; res.locals.base = req.baseUrl; next(); },
+      m.routeur(ctx),
+    );
+  } else {
+    app.get(m.chemin, connexionRequise, (req, res) => {
+      res.locals.module = m;
+      res.render('bientot', { m });
+    });
+  }
+}
 
-app.post('/dossier/:id/eml', connexionRequise, verifierCsrf, async (req, res) => {
-  const d = await extraire(req);
-  if (!d.operations.length) throw new HttpError(400, 'Aucune opération à justifier pour ce dossier.');
-  const destinataire = String(req.body.destinataire || '').replace(/[\r\n]/g, '').trim();
-  const texte = (champ) => String(req.body[champ] || '').replace(/\r\n/g, '\n').trim() || null;
-  const buf = await emlBuffer(d, {
-    destinataire, expediteur: EXPEDITEUR, signature: SIGNATURE, avant: texte('avant'), apres: texte('apres'),
-  });
-  const jour = new Date().toISOString().slice(0, 10);
-  telechargement(res, `${nomFichier(d.nom)}_mail_${jour}.eml`, 'message/rfc822', buf);
-});
-
-app.post('/dossier/:id/excel/:type', connexionRequise, verifierCsrf, async (req, res) => {
-  const type = req.params.type;
-  if (!TYPES[type]) throw new HttpError(404, 'Fichier inconnu.');
-  const d = await extraire(req);
-  telechargement(res, nomExcel(d, type), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', await excelBuffer(d, type));
-});
+// Anciennes adresses de l'Assistant 471 (avant le portail) : redirection permanente
+app.get(/^\/dossier\/.+/, (req, res) => res.redirect(301, `/471${req.originalUrl}`));
 
 // --------------------------------------------------------------------------
 // Erreurs
@@ -200,7 +196,7 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8000;
-  app.listen(port, () => console.log(`Assistant 471 sur http://localhost:${port}${DEMO ? ' (démo, mot de passe « demo »)' : ''}`));
+  app.listen(port, () => console.log(`Portail sur http://localhost:${port}${DEMO && PASSWORD ? ' (démo, mot de passe « demo »)' : ''}`));
 }
 
 module.exports = app;
